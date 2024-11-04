@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'checkstyle'
 	id 'jacoco'
 	id 'org.springframework.boot' version '3.3.5'
 	id 'io.spring.dependency-management' version '1.1.6'
@@ -29,18 +30,31 @@ ext {
 }
 
 dependencies {
+	// Spring Boot Starters
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+	// JSON Web Token library
 	implementation 'io.jsonwebtoken:jjwt:0.9.1'
+
+	// Compile-time only dependencies
 	compileOnly 'org.projectlombok:lombok'
+
+	// Development-only dependencies
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Runtime dependencies
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
+
+	// Annotation processors
 	annotationProcessor 'org.projectlombok:lombok'
+
+	// Test dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -55,6 +69,18 @@ dependencyManagement {
 tasks.named('test') {
 	useJUnitPlatform()
 	finalizedBy jacocoTestReport
+}
+
+tasks.withType(Checkstyle) {
+	reports {
+		xml.required = false // Disable XML report generation
+		html.required = true // Enable HTML report generation
+	}
+}
+
+checkstyle {
+	toolVersion = '10.20.0'
+	configFile = file('config/checkstyle/google_checks.xml')
 }
 
 jacoco {
