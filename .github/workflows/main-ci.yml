@@ -30,6 +30,11 @@ jobs:
 
     - name: Run Checkstyle on Tests
       run: ./gradlew checkstyleTest
+
+    - name: SonarCloud Scan
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: ./gradlew sonar
       
     - name: Upload Test Results
       uses: actions/upload-artifact@v3
@@ -42,14 +47,3 @@ jobs:
       with:
         name: jacoco-report
         path: build/reports/jacoco/test/html/
-        
-  sonarcloud:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: SonarCloud Scan
-      uses: sonarsource/sonarcloud-github-action@v3.1.0
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
