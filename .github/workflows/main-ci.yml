@@ -47,3 +47,6 @@ jobs:
       with:
         name: jacoco-report
         path: build/reports/jacoco/test/html/
+
+    - name: Generate JaCoCO Badge
+      run: ./gradlew generateJacocoBadge

@@ -1,11 +1,19 @@
 <a id="readme-top"></a>
 
+[![Build Status][build-shield]][build-status-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
+![INSTRUCTION](https://img.shields.io/badge/instruction--coverage-72.22%25-yellow.svg)
+![BRANCH](http://branch.coverage.link)
+![COMPLEXITY](https://img.shields.io/badge/complexity-1.25-brightgreen.svg)
+![LINE](https://img.shields.io/badge/line--coverage-60.00%25-orange.svg)
 
-
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
 <br />
 <div align="center">
 <h3 align="center">Military Logistics Management System</h3>
@@ -73,6 +81,8 @@ To further enhance the application, I plan to incorporate artificial intelligenc
 * [![PostgreSQL][PostgreSQL]][PostgreSQL-url]
 * [![IntelliJ][IntelliJ]][IntelliJ-url]
 * [![Sonar Lint][SonarLint]][SonarLint-url]
+* [![Jacoco][jacoco-shield]][jacoco-url]
+* [![Checkstyle][checkstyle-shield]][checkstyle-url]
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -168,12 +178,18 @@ Project Link: [https://github.com/ajmiller611/military-logistics-mgmt](https://g
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
+[build-shield]: https://img.shields.io/github/actions/workflow/status/ajmiller611/military-logistics-mgmt/main-ci.yml?style=for-the-badge
+[build-status-url]: https://github.com/ajmiller611/military-logistics-mgmt/actions/workflows/main-ci.yml/badge.svg
 [issues-shield]: https://img.shields.io/github/issues/ajmiller611/military-logistics-mgmt.svg?style=for-the-badge
 [issues-url]: https://github.com/ajmiller611/military-logistics-mgmt/issues
 [license-shield]: https://img.shields.io/github/license/ajmiller611/military-logistics-mgmt.svg?style=for-the-badge
 [license-url]: https://github.com/ajmiller611/military-logistics-mgmt/blob/master/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/ajmiller611
+[jacoco-shield]: https://img.shields.io/badge/JaCoCo-%23e3cea1?style=for-the-badge
+[jacoco-url]: https://github.com/jacoco/jacoco
+[checkstyle-shield]: https://img.shields.io/badge/Checkstyle-white?style=for-the-badge
+[checkstyle-url]: https://checkstyle.sourceforge.io/
 [product-screenshot]: images/screenshot.png
 [Java-url]: https://www.oracle.com/java/technologies/downloads/
 [Gradle-install-url]: https://docs.gradle.org/current/userguide/installation.html
