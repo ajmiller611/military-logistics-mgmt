@@ -4,6 +4,7 @@ plugins {
 	id 'jacoco'
 	id 'org.springframework.boot' version '3.3.5'
 	id 'io.spring.dependency-management' version '1.1.6'
+	id 'org.sonarqube' version '5.1.0.4882'
 }
 
 group = 'com.example'
@@ -71,7 +72,7 @@ tasks.named('test') {
 	finalizedBy jacocoTestReport
 }
 
-tasks.withType(Checkstyle) {
+tasks.withType(Checkstyle).configureEach {
 	reports {
 		xml.required = false // Disable XML report generation
 		html.required = true // Enable HTML report generation
