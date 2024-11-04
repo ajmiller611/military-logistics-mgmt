@@ -11,7 +11,9 @@ group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
 }
 
 configurations {
@@ -73,8 +75,8 @@ tasks.named('test') {
 tasks.withType(Checkstyle).configureEach {
 	dependsOn test // Ensure Checkstyle runs after tests
 	reports {
-		xml.required = false
-		html.required = true
+		xml.setRequired(false)
+		html.setRequired(true)
 	}
 }
 
@@ -88,7 +90,7 @@ sonarqube {
 		property "sonar.projectKey", "ajmiller611_military-logistics-mgmt"
 		property "sonar.organization", "ajmiller611"
 		property "sonar.host.url", "https://sonarcloud.io"
-		property "sonar.login", System.getenv("SONAR_TOKEN")
+		property "sonar.token", System.getenv("SONAR_TOKEN")
 	}
 }
 
