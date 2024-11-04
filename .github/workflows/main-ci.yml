@@ -14,16 +14,16 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
 
     - name: Build and Test
-      run: ./gradlew build test --info --continue
+      run: ./gradlew build test
 
     - name: Run Checkstyle on Main
       run: ./gradlew checkstyleMain
@@ -37,13 +37,13 @@ jobs:
       run: ./gradlew sonar
       
     - name: Upload Test Results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: build/test-results/
 
     - name: Upload JaCoCo Coverage Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jacoco-report
         path: build/reports/jacoco/test/html/
