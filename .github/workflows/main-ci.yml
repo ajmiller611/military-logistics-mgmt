@@ -12,7 +12,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: node:20-bookworm-slim
 
     services:
       postgres:
