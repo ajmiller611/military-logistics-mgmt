@@ -51,7 +51,7 @@ dependencies {
 
 	// Runtime dependencies
 	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'org.postgresql:postgresql:42.5.0'
 
 	// Annotation processors
 	annotationProcessor 'org.projectlombok:lombok'
