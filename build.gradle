@@ -51,7 +51,7 @@ dependencies {
 
 	// Runtime dependencies
 	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'org.postgresql:postgresql:42.7.4'
+	runtimeOnly 'org.postgresql:postgresql:42.6.0'
 
 	// Annotation processors
 	annotationProcessor 'org.projectlombok:lombok'
@@ -59,7 +59,7 @@ dependencies {
 	// Test dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	testImplementation 'org.postgresql:postgresql:42.7.4'
+	testImplementation 'org.postgresql:postgresql:42.6.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

@@ -16,7 +16,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:42.7.4
+        image: postgres:17
         env:
           POSTGRES_USER: db_admin
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
