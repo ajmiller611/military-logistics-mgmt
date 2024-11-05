@@ -8,9 +8,20 @@ on:
     branches:
       - main
 
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: db_admin
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
 
     steps:
     - name: Checkout Code
@@ -22,8 +33,11 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Build and Test
-      run: ./gradlew build test
+    - name: Build
+      run: ./gradlew build
+
+    - name: Test
+      run: ./gradlew test
 
     - name: Run Checkstyle on Main
       run: ./gradlew checkstyleMain
