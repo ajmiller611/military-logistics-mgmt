@@ -1,5 +1,7 @@
+# Continuous Integration Workflow for Military Logistics Management Application
 name: CI Workflow
 
+# Trigger the workflow on push and pull requests
 on:
   push:
     branches:
@@ -8,10 +10,13 @@ on:
     branches:
       - main
 
+# Set up the jobs to perform
 jobs:
+  # Set up the environment, build the application, and run the tests.
   build:
     runs-on: ubuntu-latest
 
+    # Set up a service container to host the postgreSQL database.
     services:
       postgres:
         image: postgres:17
@@ -21,6 +26,7 @@ jobs:
           POSTGRES_DB: test_db
         ports:
           - 5432:5432
+        # Run a health check to make sure the database is available.
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -31,40 +37,93 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Fetch all branches
-      run: git fetch --prune --unshallow
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.gradle/caches
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
 
+    # Set up the JDK for the Spring Boot Application
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
 
+    # Build and test the application
     - name: Build and Test
       run: ./gradlew build test
 
-    - name: Run Checkstyle on Main
-      run: ./gradlew checkstyleMain
-
-    - name: Run Checkstyle on Tests
-      run: ./gradlew checkstyleTest
-
-    - name: SonarCloud Scan
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: ./gradlew sonar
-      
-    - name: Upload Test Results
+    # Upload the build artifacts for subsequent jobs needs.
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: test-results
-        path: build/test-results/
+        name: build-artifacts
+        path: build/
 
-    - name: Upload JaCoCo Coverage Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: jacoco-report
-        path: build/reports/jacoco/html/
+  # The next two jobs (lint_and_scan and upload_results) can run simultaneously but both need
+  # the build job to complete before the jobs can start.
+  lint_and_scan:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Generate JaCoCO Badge
-      run: ./gradlew generateJacocoBadge
+      # Fetch all branch references for Sonar scan.
+      - name: Fetch all branches
+        run: git fetch --unshallow
+
+      - name: Run Checkstyle
+        run: |
+          ./gradlew checkstyleMain
+          ./gradlew checkstyleTest
+
+      - name: SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar
+
+  # Upload results for further analysis.
+  upload_results:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/test-results/
+
+      - name: Upload JaCoCo Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/html/
+
+      # Generate the coverage badges for the README file
+      - name: Generate JaCoCO Badge
+        run: ./gradlew generateJacocoBadge
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [build, lint_and_scan, upload_results]
+    if: always()
+    steps:
+      - name: Remove build artifacts
+        run: |
+          rm -rf build/
+          rm -rf ~/.gradle/caches
+          rm -rf ~/.gradle/daemon
+          rm -rf .git
+          rm -rf build/sonar
+          rm -rf build/tmp
+          rm -rf build/cache
+          rm -rf build/reports/jacoco
