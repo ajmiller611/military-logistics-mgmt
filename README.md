@@ -5,10 +5,10 @@
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
-![INSTRUCTION](https://img.shields.io/badge/instruction--coverage-72.22%25-yellow.svg)
+![INSTRUCTION](http://instruction.coverage.link)
 ![BRANCH](http://branch.coverage.link)
-![COMPLEXITY](https://img.shields.io/badge/complexity-1.25-brightgreen.svg)
-![LINE](https://img.shields.io/badge/line--coverage-60.00%25-orange.svg)
+![COMPLEXITY](http://complexity.coverage.link)
+![LINE](http://line.coverage.link)
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
@@ -103,9 +103,7 @@ To set up a local environment for this project, follow the below steps. To be up
   java -version
   ```
   
-* Download Gradle
-<br>
-  Follow the [Gradle install instructions][Gradle-install-url] for setup.
+* Download Gradle. To do so, follow the [Gradle install instructions][Gradle-install-url] for setup.
 
 
 * Install npm (Node Package Manager) for managing React dependencies.
