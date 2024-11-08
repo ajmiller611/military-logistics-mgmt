@@ -1,8 +1,9 @@
 package com.example.militarylogisticsmgmt;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,10 +15,14 @@ import com.example.militarylogisticsmgmt.model.User;
 import com.example.militarylogisticsmgmt.repository.UserRepository;
 import com.example.militarylogisticsmgmt.service.UserService;
 import java.time.LocalDateTime;
+import nl.altindag.log.LogCaptor;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -52,18 +57,31 @@ class UserControllerUnitTest {
 
   private final MockMvc mockMvc; // MockMvc for testing the controller's endpoints
 
-  @MockBean
-  private UserService userService; // Mocked UserService to isolate the controller's behavior
+  // Using SpyBean to be able to test the logging.
+  @SpyBean
+  private final UserService userService;
 
   @MockBean
-  private PasswordEncoder passwordEncoder; // Mocked PasswordEncoder to handle password encoding
+  private PasswordEncoder passwordEncoder; // Mocked PasswordEncoder dependency for UserService
 
   @MockBean
-  private UserRepository userRepository; // Mocked UserRepository to prevent database interactions
+  private UserRepository userRepository; // Mocked UserRepository dependency for UserService
+
+  // Define log captures for the classes that need logs captured.
+  private LogCaptor serviceLogCaptor;
+  private LogCaptor controllerLogCaptor;
 
   @Autowired
-  public UserControllerUnitTest(MockMvc mockMvc) {
+  UserControllerUnitTest(UserService service, MockMvc mockMvc) {
+    this.userService = service;
     this.mockMvc = mockMvc;
+  }
+
+  // Reinitialize LogCaptor before each test
+  @BeforeEach
+  void beforeEach() {
+    serviceLogCaptor = LogCaptor.forClass(UserService.class);
+    controllerLogCaptor = LogCaptor.forClass(UserController.class);
   }
 
   /**
@@ -74,16 +92,6 @@ class UserControllerUnitTest {
   @Test
   void createUserShouldReturnCreatedUser() throws Exception {
     // Given
-    User newUser = new User(
-        null,
-        "testUsername",
-        "testPassword",
-        "test@example.com",
-        null
-    );
-
-    assertNull(newUser.getUserId(), "UserId should be null for a new user");
-
     User createdUser = new User(
         1L,
         "testUsername",
@@ -91,19 +99,51 @@ class UserControllerUnitTest {
         "test@example.com",
         LocalDateTime.now()
     );
-
-    when(userService.addUser(any(User.class))).thenReturn(createdUser);
+    doReturn(createdUser).when(userService).addUser(any(User.class));
+    // Given
+    String json = "{\"username\":\"testUsername\", \"password\":\"testPassword\","
+        + " \"email\":\"test@example.com\"}";
 
     // When & Then
     mockMvc.perform(post("/users")
-            .with(csrf()) // add csrf token
-            .with(user("testUser").password("password").roles("USER")) // add authentication details
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(
-                "{\"username\":\"testUsername\", \"password\":\"testPassword\","
-                    + " \"email\":\"test@example.com\"}"))
+        .with(csrf()) // add csrf token
+        .with(user("testUser").password("password").roles("USER")) // add authentication details
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.user.username").value("testUsername"))
         .andExpect(jsonPath("$.user.email").value("test@example.com"));
+  }
+
+  /**
+   * Test the createUser endpoint to ensure it returns an error. This test verifies that when
+   * an invalid user is posted to the /users endpoint, the response is a 400 Bad Request status,
+   * and an error is returned.
+   */
+  @Test
+  void createUserWithInvalidIdShouldReturnError() throws Exception {
+    // Given
+    String json = "{\"userId\":\"1\", \"username\":\"testUser\", \"password\":\"testPassword\","
+        + " \"email\":\"test@example.com\"}";
+
+    // When & Then
+    mockMvc.perform(post("/users")
+        .with(csrf()) // add csrf token
+        .with(user("testUser").password("password").roles("USER")) // add authentication details
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.user").value(Matchers.nullValue()))
+        .andExpect(jsonPath("$.error").value("Error during user creation"));
+
+    // Test a log at warn level was logged by the UserService addUser method.
+    assertThat(serviceLogCaptor.getWarnLogs()).isNotEmpty();
+    assertThat(serviceLogCaptor.getWarnLogs().getFirst())
+        .contains("Attempted creation of user with non-null id! Request Id: 1");
+
+    // Test a log at debug level was logged by the UserController's post endpoint.
+    assertThat(controllerLogCaptor.getDebugLogs()).isNotEmpty();
+    assertThat(controllerLogCaptor.getDebugLogs().getFirst())
+        .contains("User creation failed: User ID must be null when creating a new user.");
   }
 }

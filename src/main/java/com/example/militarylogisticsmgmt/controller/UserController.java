@@ -58,7 +58,7 @@ public class UserController {
 
     } catch (IllegalArgumentException e) {
       // Log user creation failure with detailed error message for debugging and auditing purposes.
-      logger.warn("User creation failed: {}", e.getMessage());
+      logger.debug("User creation failed: {}", e.getMessage());
 
       /*
        * Create a response object with a generic error message to prevent exposing internal logic
