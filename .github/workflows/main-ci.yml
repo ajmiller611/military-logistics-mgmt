@@ -12,7 +12,8 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
+  pull-requests: none
+  issues: none
 
 # Set up the jobs to perform
 jobs:
