@@ -1,5 +1,6 @@
 package com.example.militarylogisticsmgmt;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.militarylogisticsmgmt.repository.UserRepository;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -57,7 +59,7 @@ class UserControllerIntegrationTest {
    * Test the createUser endpoint to ensure it returns a created user.
    *
    * <p>This test verifies that when a valid user is posted to the /users endpoint,
-   * a returned response of 201 Created status, and the user is correctly saved in the H2 database.
+   * a returned response of 201 Created status, and the user is correctly saved in the database.
    */
   @Test
   void createUserShouldReturnCreatedUser() throws Exception {
@@ -75,7 +77,33 @@ class UserControllerIntegrationTest {
         .andExpect(jsonPath("$.user.username").value("testUser"))
         .andExpect(jsonPath("$.user.email").value("test@example.com"));
 
-    // Assert that the user is actually saved in the H2 database after the request
+    // Assert that the user is actually saved in the database after the request
     assertTrue(userRepository.findByUsername("testUser").isPresent());
+  }
+
+  /**
+   * Test the createUser endpoint to ensure it returns an error and a database record is not stored.
+   *
+   * <p>This test verifies that when an invalid user is posted to the /users endpoint,
+   * a returned response of 400 Bad Request status, and the user is not created in the database.
+   */
+  @Test
+  void createUserWithInvalidIdShouldNotRecordToDatabase() throws Exception {
+    // Given
+    String json = "{\"userId\":\"1\", \"username\":\"testUser\", \"password\":\"testPassword\","
+        + " \"email\":\"test@example.com\"}";
+
+    // When & Then
+    mockMvc.perform(post("/users")
+        .with(csrf()) // add csrf token
+        .with(user("testUser").password("password").roles("USER")) // add authentication details
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.user").value(Matchers.nullValue()))
+        .andExpect(jsonPath("$.error").value("Error during user creation"));
+
+    // Assert that the user is not saved in the database after the request
+    assertFalse(userRepository.findByUsername("testUser").isPresent());
   }
 }
