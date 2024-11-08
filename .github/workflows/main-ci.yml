@@ -55,8 +55,8 @@ jobs:
     # Run the linter
     - name: Run Checkstyle
       run: |
-        ./gradlew checkstyleMain
-        ./gradlew checkstyleTest
+        ./gradlew checkStyleMain
+        ./gradlew checkStyleTest
 
     # Run Sonar analysis tool
     - name: SonarCloud Scan

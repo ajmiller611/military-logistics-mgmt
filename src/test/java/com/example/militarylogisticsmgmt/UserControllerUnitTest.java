@@ -92,7 +92,7 @@ class UserControllerUnitTest {
   @Test
   void createUserShouldReturnCreatedUser() throws Exception {
     // Given
-     User createdUser = new User(
+    User createdUser = new User(
         1L,
         "testUsername",
         "encodedPassword",
