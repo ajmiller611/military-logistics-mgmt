@@ -10,6 +10,12 @@ on:
     branches:
       - main
 
+# TODO: Tried setting permissions but github-actions bot still automatically merges commit
+permissions:
+  contents: write
+  pull-requests: none
+  issues: none
+
 # Set up the jobs to perform
 jobs:
   # Set up the environment, build the application, and run the tests.
@@ -76,3 +82,23 @@ jobs:
       with:
         name: jacoco-report
         path: build/reports/jacoco/html/
+
+    # Generate the coverage badges for the README file
+    - name: Generate JaCoCO Badge
+      run: ./gradlew generateJacocoBadge
+
+    - name: Configure git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit README update
+      run: |
+        git add README.md
+        git commit -m "Update Jacoco badge in README"
+      continue-on-error: true # Avoid error if there are no changes
+
+    - name: Push changes
+      run: git push origin HEAD:main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
