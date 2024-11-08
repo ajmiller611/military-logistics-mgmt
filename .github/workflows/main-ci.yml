@@ -80,3 +80,19 @@ jobs:
       # Generate the coverage badges for the README file
     - name: Generate JaCoCO Badge
       run: ./gradlew generateJacocoBadge
+
+    - name: Configure git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Commit README update
+      run: |
+        git add README.md
+        git commit -m "Update Jacoco badge in README"
+      continue-on-error: true # Avoid error if there are no changes
+
+    - name: Push changes
+      run: git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
