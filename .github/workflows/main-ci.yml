@@ -11,6 +11,7 @@ on:
       - main
 
 permissions:
+  content: write
   pull-requests: read
 
 # Set up the jobs to perform
