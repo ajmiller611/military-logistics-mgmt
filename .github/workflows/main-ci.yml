@@ -86,9 +86,6 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Check for changes
-      run: git status
-
     - name: Commit README update
       run: |
         git add README.md
@@ -96,6 +93,6 @@ jobs:
       continue-on-error: true # Avoid error if there are no changes
 
     - name: Push changes
-      run: git push
+      run: git push origin HEAD:main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
