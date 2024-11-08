@@ -5,10 +5,10 @@
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
-![INSTRUCTION](http://instruction.coverage.link)
-![BRANCH](http://branch.coverage.link)
-![COMPLEXITY](http://complexity.coverage.link)
-![LINE](http://line.coverage.link)
+![INSTRUCTION](https://img.shields.io/badge/instruction--coverage-96.86%25-brightgreen.svg)
+![BRANCH](https://img.shields.io/badge/branch--coverage-100.00%25-brightgreen.svg)
+![COMPLEXITY](https://img.shields.io/badge/complexity-1.17-brightgreen.svg)
+![LINE](https://img.shields.io/badge/line--coverage-95.00%25-brightgreen.svg)
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ajmiller611_military-logistics-mgmt&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ajmiller611_military-logistics-mgmt)
