@@ -48,14 +48,6 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    # Check PostgreSQL is ready before running the application.
-    - name: Wait for PostgreSQL to be ready
-      run: |
-        until docker exec postgres pg_isready -U db_admin; do
-          echo "Waiting for database to be ready..."
-          sleep 5
-        done
-
     # Build and test the application
     - name: Build and Test
       run: ./gradlew build test
