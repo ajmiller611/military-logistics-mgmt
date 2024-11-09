@@ -16,10 +16,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Set up a service container to host the postgreSQL database.
+    # Set up a service container to host the PostgreSQL database.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: db_admin
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -47,6 +47,14 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
+
+    # Check PostgreSQL is ready before running the application.
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        until docker exec postgres_container pg_isready -U db_admin; do
+          echo "Waiting for database to be ready..."
+          sleep 5
+        done
 
     # Build and test the application
     - name: Build and Test
