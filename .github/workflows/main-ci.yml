@@ -28,7 +28,7 @@ jobs:
           - 5432:5432
         # Run a health check to make sure the database is available.
         options: >
-          --health-cmd pg_isready -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }}
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
