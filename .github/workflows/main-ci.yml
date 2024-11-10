@@ -16,14 +16,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Set up a service container to host the postgreSQL database.
+    # Set up a service container to host the PostgreSQL database.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17-alpine
         env:
-          POSTGRES_USER: db_admin
+          POSTGRES_USER: ${{ secrets.DB_USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          POSTGRES_DB: test_db
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
         ports:
           - 5432:5432
         # Run a health check to make sure the database is available.
@@ -48,9 +48,13 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    # Build and test the application
+      # Build and test the application
     - name: Build and Test
       run: ./gradlew build test
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
+        SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
+        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     # Run the linter
     - name: Run Checkstyle
