@@ -50,9 +50,9 @@ jobs:
 
     - name: Set environment variables for test profile
       run: |
-        echo "DB_TEST_URL=jdbc:postgresql://postgres:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}" >> $GITHUB_ENV
-        echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
-        echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
+        echo "DB_TEST_URL=jdbc:postgresql://localhost:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}" >> $GITHUB_ENV
+        echo "DB_TEST_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
+        echo "DB_TEST_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
 
       # Build and test the application
     - name: Build and Test
