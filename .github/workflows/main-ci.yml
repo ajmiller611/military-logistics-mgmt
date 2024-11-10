@@ -27,7 +27,7 @@ jobs:
         ports:
           - 5432:5432
         # Run a health check to make sure the database is available.
-        options: >
+        options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
