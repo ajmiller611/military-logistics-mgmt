@@ -32,6 +32,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        networks:
+          - backend
 
     steps:
     - name: Checkout Code
@@ -58,10 +60,12 @@ jobs:
     - name: Build and Test
       run: ./gradlew build
       env:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${{ secrets.DB_NAME }}
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
       continue-on-error: true
+      networks:
+        - backend
 
     - name: Test
       run: ./gradlew test --debug
