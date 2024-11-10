@@ -32,8 +32,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        networks:
-          - backend
 
     steps:
     - name: Checkout Code
@@ -50,12 +48,6 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    #- name: Set environment variables for test profile
-    #  run: |
-    #    echo "DB_TEST_URL=jdbc:postgresql://postgres:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}" >> $GITHUB_ENV
-    #    echo "DB_TEST_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
-    #    echo "DB_TEST_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
-
       # Build and test the application
     - name: Build and Test
       run: ./gradlew build
@@ -64,8 +56,6 @@ jobs:
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
       continue-on-error: true
-      networks:
-        - backend
 
     - name: Test
       run: ./gradlew test --debug
