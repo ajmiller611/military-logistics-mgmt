@@ -50,7 +50,10 @@ jobs:
 
       # Build and test the application
     - name: Build and Test
-      run: ./gradlew build test --debug
+      run: ./gradlew build
+
+    - name: Test
+      run: ./gradlew test --debug
 
     # Run the linter
     - name: Run Checkstyle
