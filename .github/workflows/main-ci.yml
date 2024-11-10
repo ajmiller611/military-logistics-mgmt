@@ -48,7 +48,10 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    # Build and test the application
+    - name: Show PostgreSQL container logs
+      run: docker logs postgres
+
+      # Build and test the application
     - name: Build and Test
       run: ./gradlew build test
 

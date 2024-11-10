@@ -3,17 +3,18 @@ services:
     image: postgres:17-alpine
     container_name: postgres_local
     environment:
-      POSTGRES_USER: db_admin
+      POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: test_db
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432" # Mapping host port to Postgres default port in the container
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - backend
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U db_admin" ]
+      # Check if the PostgreSQL service is ready
+      test: ["CMD-SHELL", "pg_isready -U $DB_USERNAME -d $DB_NAME"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,25 +23,11 @@ services:
     build:
       context: .
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/test_db
-      SPRING_DATASOURCE_USERNAME: db_admin
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:${DB_PORT}/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "8080:8080"
-    networks:
-      - backend
-    depends_on:
-      - postgres
-
-  # Include PgAdmin tool for modifying the database during development.
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin_local
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"  # Expose pgAdmin on host at port 5050
+      - "${APP_PORT}:8080" # Mapping host port to Spring boot default port in the container
     networks:
       - backend
     depends_on:
