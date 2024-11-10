@@ -50,15 +50,11 @@ jobs:
 
       # Build and test the application
     - name: Build and Test
-      run: ./gradlew build
+      run: ./gradlew build test
       env:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      continue-on-error: true
-
-    - name: Test
-      run: ./gradlew test --debug
 
     # Run the linter
     - name: Run Checkstyle
