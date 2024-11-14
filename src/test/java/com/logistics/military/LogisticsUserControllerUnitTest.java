@@ -10,10 +10,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.logistics.military.controller.UserController;
-import com.logistics.military.model.User;
-import com.logistics.military.repository.UserRepository;
-import com.logistics.military.service.UserService;
+import com.logistics.military.controller.LogisticsUserController;
+import com.logistics.military.model.LogisticsUser;
+import com.logistics.military.repository.LogisticsUserRepository;
+import com.logistics.military.service.LogisticsUserService;
 import java.time.LocalDateTime;
 import nl.altindag.log.LogCaptor;
 import org.hamcrest.Matchers;
@@ -29,7 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Unit test class for the {@link UserController}.
+ * Unit test class for the {@link LogisticsUserController}.
  *
  * <p>This class is designed to test the behavior of the UserController's endpoints. It utilizes
  * Spring's WebMvcTest support to create a mock web environment for testing, allowing for the
@@ -52,36 +52,37 @@ import org.springframework.test.web.servlet.MockMvc;
  * </p>
  */
 @ActiveProfiles("test")
-@WebMvcTest(UserController.class)
-class UserControllerUnitTest {
+@WebMvcTest(LogisticsUserController.class)
+class LogisticsUserControllerUnitTest {
 
   private final MockMvc mockMvc; // MockMvc for testing the controller's endpoints
 
   // Using SpyBean to be able to test the logging.
   @SpyBean
-  private final UserService userService;
+  private final LogisticsUserService logisticsUserService;
 
   @MockBean
   private PasswordEncoder passwordEncoder; // Mocked PasswordEncoder dependency for UserService
 
+  // Mocked UserRepository dependency for UserService
   @MockBean
-  private UserRepository userRepository; // Mocked UserRepository dependency for UserService
+  private LogisticsUserRepository logisticsUserRepository;
 
   // Define log captures for the classes that need logs captured.
   private LogCaptor serviceLogCaptor;
   private LogCaptor controllerLogCaptor;
 
   @Autowired
-  UserControllerUnitTest(UserService service, MockMvc mockMvc) {
-    this.userService = service;
+  LogisticsUserControllerUnitTest(LogisticsUserService service, MockMvc mockMvc) {
+    this.logisticsUserService = service;
     this.mockMvc = mockMvc;
   }
 
   // Reinitialize LogCaptor before each test
   @BeforeEach
   void beforeEach() {
-    serviceLogCaptor = LogCaptor.forClass(UserService.class);
-    controllerLogCaptor = LogCaptor.forClass(UserController.class);
+    serviceLogCaptor = LogCaptor.forClass(LogisticsUserService.class);
+    controllerLogCaptor = LogCaptor.forClass(LogisticsUserController.class);
   }
 
   /**
@@ -92,14 +93,14 @@ class UserControllerUnitTest {
   @Test
   void createUserShouldReturnCreatedUser() throws Exception {
     // Given
-    User createdUser = new User(
+    LogisticsUser createdUser = new LogisticsUser(
         1L,
         "testUsername",
         "encodedPassword",
         "test@example.com",
         LocalDateTime.now()
     );
-    doReturn(createdUser).when(userService).addUser(any(User.class));
+    doReturn(createdUser).when(logisticsUserService).addUser(any(LogisticsUser.class));
     // Given
     String json = "{\"username\":\"testUsername\", \"password\":\"testPassword\","
         + " \"email\":\"test@example.com\"}";

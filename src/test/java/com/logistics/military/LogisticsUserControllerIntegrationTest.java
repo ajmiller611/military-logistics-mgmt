@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.logistics.military.repository.UserRepository;
+import com.logistics.military.repository.LogisticsUserRepository;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,16 +43,20 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
-class UserControllerIntegrationTest {
+class LogisticsUserControllerIntegrationTest {
 
-  private final MockMvc mockMvc; // MockMvc for testing the controller's endpoints
+  // MockMvc for testing the controller's endpoints
+  private final MockMvc mockMvc;
 
-  private final UserRepository userRepository; // Mocked UserRepository for database interactions
+  // Mocked UserRepository for database interactions
+  private final LogisticsUserRepository logisticsUserRepository;
 
   @Autowired
-  public UserControllerIntegrationTest(MockMvc mockMvc, UserRepository userRepository) {
+  public LogisticsUserControllerIntegrationTest(
+      MockMvc mockMvc,
+      LogisticsUserRepository logisticsUserRepository) {
     this.mockMvc = mockMvc;
-    this.userRepository = userRepository;
+    this.logisticsUserRepository = logisticsUserRepository;
   }
 
   /**
@@ -78,7 +82,7 @@ class UserControllerIntegrationTest {
         .andExpect(jsonPath("$.user.email").value("test@example.com"));
 
     // Assert that the user is actually saved in the database after the request
-    assertTrue(userRepository.findByUsername("testUser").isPresent());
+    assertTrue(logisticsUserRepository.findByUsername("testUser").isPresent());
   }
 
   /**
@@ -104,6 +108,6 @@ class UserControllerIntegrationTest {
         .andExpect(jsonPath("$.error").value("Error during user creation"));
 
     // Assert that the user is not saved in the database after the request
-    assertFalse(userRepository.findByUsername("testUser").isPresent());
+    assertFalse(logisticsUserRepository.findByUsername("testUser").isPresent());
   }
 }

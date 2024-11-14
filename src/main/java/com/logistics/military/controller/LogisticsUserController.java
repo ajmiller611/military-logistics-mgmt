@@ -1,8 +1,8 @@
 package com.logistics.military.controller;
 
-import com.logistics.military.model.User;
-import com.logistics.military.response.UserResponse;
-import com.logistics.military.service.UserService;
+import com.logistics.military.model.LogisticsUser;
+import com.logistics.military.response.LogisticsUserResponse;
+import com.logistics.military.service.LogisticsUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,41 +17,41 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/users")
-public class UserController {
+public class LogisticsUserController {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  private final UserService userService;
+  private final LogisticsUserService logisticsUserService;
 
   /**
    * Use constructor-based dependency injection to ensure the UserService is provided,
-   * promoting testability and loose coupling when UserController is instantiated.
+   * promoting testability and loose coupling when LogisticsUserController is instantiated.
    */
-  public UserController(UserService userService) {
-    this.userService = userService;
+  public LogisticsUserController(LogisticsUserService logisticsUserService) {
+    this.logisticsUserService = logisticsUserService;
   }
 
   /**
    * Handles HTTP POST requests to create a new user in the system.
    *
-   * @param newUser a {@link User} object containing the user details from the request body.
-   * @return a {@link ResponseEntity} containing a {@link UserResponse} object with the created
-   *     user's details and a {@link HttpStatus#CREATED} status if successful,
-   *     or a {@link UserResponse} object with an error message {@link HttpStatus#BAD_REQUEST} if an
-   *     {@link IllegalArgumentException} is caught, indicating that an error occurred
+   * @param newUser a {@link LogisticsUser} object containing the user details from the request body
+   * @return a {@link ResponseEntity} containing a {@link LogisticsUserResponse} object with the
+   *     created user's details and a {@link HttpStatus#CREATED} status if successful, or a
+   *     {@link LogisticsUserResponse} object with an error message {@link HttpStatus#BAD_REQUEST}
+   *     if an {@link IllegalArgumentException} is caught, indicating that an error occurred
    *     while attempting to add the user.
    */
   @PostMapping
-  public ResponseEntity<UserResponse> createUser(@RequestBody User newUser) {
+  public ResponseEntity<LogisticsUserResponse> createUser(@RequestBody LogisticsUser newUser) {
     try {
       // Pass the user to the service layer for addition to the database
-      User createdUser = userService.addUser(newUser);
+      LogisticsUser createdUser = logisticsUserService.addUser(newUser);
 
       // Log the new record for debugging and auditing purposes.
       logger.debug("User created: {}", createdUser);
 
       // Create response object with the created User
-      UserResponse response = new UserResponse(createdUser, null);
+      LogisticsUserResponse response = new LogisticsUserResponse(createdUser, null);
 
       // Return a response with status 201 Created and the created user
       return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -64,7 +64,8 @@ public class UserController {
        * Create a response object with a generic error message to prevent exposing internal logic
        * to potential attackers.
        */
-      UserResponse response = new UserResponse(null, "Error during user creation");
+      LogisticsUserResponse response =
+          new LogisticsUserResponse(null, "Error during user creation");
 
       // Return a response with status 400 Bad Request and the generic error message
       return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

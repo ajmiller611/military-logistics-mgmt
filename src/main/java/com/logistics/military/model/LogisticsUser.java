@@ -20,7 +20,7 @@ import lombok.Data;
 @AllArgsConstructor
 @Entity
 @Table(name = "users") // Specify the table name to avoid reserved keyword issues
-public class User {
+public class LogisticsUser {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +37,7 @@ public class User {
   /**
    * Default constructor required by JPA for entity instantiation.
    */
-  public User() {
+  public LogisticsUser() {
     // Empty constructor for JPA
   }
 

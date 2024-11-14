@@ -2,9 +2,9 @@ package com.logistics.military;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.logistics.military.controller.UserController;
-import com.logistics.military.repository.UserRepository;
-import com.logistics.military.service.UserService;
+import com.logistics.military.controller.LogisticsUserController;
+import com.logistics.military.repository.LogisticsUserRepository;
+import com.logistics.military.service.LogisticsUserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,9 +26,9 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class MilitaryLogisticsManagementSystemApplicationTests {
 
-  private final UserController userController;
-  private final UserService userService;
-  private final UserRepository userRepository;
+  private final LogisticsUserController userController;
+  private final LogisticsUserService userService;
+  private final LogisticsUserRepository userRepository;
 
   /**
    * Constructor for {@link MilitaryLogisticsManagementSystemApplicationTests}.
@@ -38,13 +38,13 @@ class MilitaryLogisticsManagementSystemApplicationTests {
    * dependencies are correctly resolved.
    * </p>
    *
-   * @param userController the {@link UserController} to be injected, which handles user operations.
+   * @param userController the {@link LogisticsUserController} to be injected, which handles user operations.
    */
   @Autowired
   public MilitaryLogisticsManagementSystemApplicationTests(
-      UserController userController,
-      UserService userService,
-      UserRepository userRepository
+      LogisticsUserController userController,
+      LogisticsUserService userService,
+      LogisticsUserRepository userRepository
   ) {
     this.userController = userController;
     this.userService = userService;
