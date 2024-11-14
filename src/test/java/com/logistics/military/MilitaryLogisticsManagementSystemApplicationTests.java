@@ -1,10 +1,10 @@
-package com.example.militarylogisticsmgmt;
+package com.logistics.military;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.example.militarylogisticsmgmt.controller.UserController;
-import com.example.militarylogisticsmgmt.repository.UserRepository;
-import com.example.militarylogisticsmgmt.service.UserService;
+import com.logistics.military.controller.UserController;
+import com.logistics.military.repository.UserRepository;
+import com.logistics.military.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
