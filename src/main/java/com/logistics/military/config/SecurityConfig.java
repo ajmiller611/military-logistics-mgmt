@@ -98,7 +98,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        .csrf((csrf) -> csrf.disable()) // Disables CSRF protection for REST API
+        .csrf((csrf) -> csrf.ignoringRequestMatchers("/auth/**"))
         .authorizeHttpRequests(auth -> {
           auth.requestMatchers("/auth/**").permitAll();
           auth.requestMatchers("/admin/**").hasRole("ADMIN");

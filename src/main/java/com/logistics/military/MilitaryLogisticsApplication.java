@@ -4,6 +4,7 @@ import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
+import io.github.cdimascio.dotenv.Dotenv;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -77,11 +78,14 @@ public class MilitaryLogisticsApplication {
       roles.add(adminRole);
       roles.add(userRole);
 
+      Dotenv dotenv = Dotenv.load();
+      String passwordFromEnv = dotenv.get("ADMIN_PASSWORD");
+
       // Create a user with admin role.
       LogisticsUser admin = new LogisticsUser(
           1L,
           "admin",
-          passwordEncoder.encode("password"),
+          passwordEncoder.encode(passwordFromEnv),
           "admin@example.com",
           LocalDateTime.now(clock),
           roles
