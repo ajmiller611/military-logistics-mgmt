@@ -192,7 +192,7 @@ public class AuthenticationController {
       String username = decodedJwt.getSubject();
 
       // Check if the refresh token is expired or invalid
-      if (decodedJwt.getExpiresAt().isBefore(Instant.now())) {
+      if (decodedJwt.getExpiresAt() == null || decodedJwt.getExpiresAt().isBefore(Instant.now())) {
         return ResponseEntity
             .status(HttpStatus.FORBIDDEN)
             .body("Refresh token has expired");
