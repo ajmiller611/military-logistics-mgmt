@@ -78,8 +78,13 @@ public class MilitaryLogisticsApplication {
       roles.add(adminRole);
       roles.add(userRole);
 
-      Dotenv dotenv = Dotenv.load();
+      Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
       String passwordFromEnv = dotenv.get("ADMIN_PASSWORD");
+
+      // Get password for GitHub actions workflow
+      if (passwordFromEnv == null) {
+        passwordFromEnv = System.getenv("ADMIN_PASSWORD");
+      }
 
       // Create a user with admin role.
       LogisticsUser admin = new LogisticsUser(
