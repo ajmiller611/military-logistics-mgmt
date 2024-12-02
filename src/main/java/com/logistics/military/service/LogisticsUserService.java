@@ -2,6 +2,7 @@ package com.logistics.military.service;
 
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
+import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
@@ -10,11 +11,16 @@ import com.logistics.military.repository.RoleRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,74 +29,39 @@ import org.springframework.stereotype.Service;
 
 
 /**
- * Service responsible for managing and processing user-related operations, including user creation,
- * password encoding, and role assignment for application security and access control.
+ * Service responsible for managing and processing user-related operations,
+ * including user registration, password encoding, role assignment, and user retrieval.
  *
- * <p>This service encapsulates the business logic for user management, interacting with the
- * data access layer through {@link LogisticsUserRepository}. Responsibilities include ensuring data
- * integrity by encoding passwords and validating user roles before persistence,
- * and supporting authentication by implementing {@link UserDetailsService}.</p>
- *
- * <p>Primary use cases:</p>
- * <ul>
- *   <li>User registration and account setup with role-based access assignment</li>
- *   <li>Integration with Spring Security for secure user authentication</li>
- * </ul>
+ * <p>This service encapsulates the core business logic for user management,
+ * ensuring secure and efficient handling of user data. It interacts with the
+ * persistence layer through {@link LogisticsUserRepository} and integrates with
+ * Spring Security for authentication and role-based access control.</p>
  */
 @Service
 @RequiredArgsConstructor
 public class LogisticsUserService implements UserDetailsService {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
-
   private final PasswordEncoder passwordEncoder;
   private final RoleRepository roleRepository;
   private final LogisticsUserRepository logisticsUserRepository;
   private final Clock clock;
 
   /**
-   * Convert a {@link LogisticsUser} object to a {@link LogisticsUserDto} object.
-   * This method also converts {@link org.springframework.security.core.GrantedAuthority} objects
-   * into {@link Role} objects to reflect the user's roles.
-   *
-   * @param user a {@link LogisticsUser} object containing the user's data to be converted
-   *             to a {@link LogisticsUserDto} object.
-   * @return a {@link LogisticsUserDto} object containing the transformed user data.
-   */
-  public LogisticsUserDto mapToUserDto(LogisticsUser user) {
-    Set<Role> roles = user.getAuthorities().stream()
-        .map(authority -> {
-          Role role = new Role();
-          role.setAuthority(authority.getAuthority());
-          return role;
-        })
-        .collect(Collectors.toSet());
-
-    return new LogisticsUserDto(
-        user.getUserId(),
-        user.getUsername(),
-        user.getEmail(),
-        user.getCreatedAt(),
-        roles
-    );
-  }
-
-  // TODO: Update javadoc
-  /**
-   * Registers a new user by encoding their password, assigning a default role, and saving
-   * their information in the database.
+   * Registers a new user by validating the input data, encoding the password,
+   * assigning a default role, and saving the user information to the database.
    *
    * <p>This method ensures secure handling of user data, including password encryption
    * and role assignment. It validates that the user is new, checks required fields for
    * null or empty values.
    * </p>
    *
-   * @param userRequestDto the {@link UserRequestDto} containing registration data
-   * @return the {@link LogisticsUserDto} object user details and assigned roles
-   * @throws IllegalArgumentException if any of the required fields are empty
-   * @throws IllegalStateException if the "USER" role is missing in the database
-   * @throws UserAlreadyExistsException if the username already exists in the database
-   * @throws RuntimeException if an unexpected error occurs during user creation
+   * @param userRequestDto the {@link UserRequestDto} containing the user's registration data.
+   * @return a {@link LogisticsUserDto} object containing the registered user's details.
+   * @throws IllegalArgumentException if required fields are empty or null.
+   * @throws UserAlreadyExistsException if the username already exists in the database.
+   * @throws IllegalStateException if the "USER" role is missing in the database.
+   * @throws RuntimeException if an unexpected error occurs during user creation.
    */
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
     logger.info("Create user request with DTO: {}",  userRequestDto);
@@ -140,6 +111,39 @@ public class LogisticsUserService implements UserDetailsService {
   }
 
   /**
+   * Retrieves a paginated list of users, excluding any users with the "ADMIN" role.
+   *
+   * <p>This method queries the database for all users and filters out users with the "ADMIN" role
+   * before mapping the remaining users to {@link UserResponseDto} objects.
+   * </p>
+   *
+   * <p>The filtering out "ADMIN" roles is for security purposes.</p>
+   *
+   * @param page the page number to retrieve.
+   * @param size the number of users per page.
+   * @return a {@link Page} containing {@link UserResponseDto} objects for the requested page,
+   *         excluding users with the "ADMIN" role.
+   */
+  public Page<UserResponseDto> getUsers(int page, int size) {
+    // Set the paging restrictions for the pageable object
+    Pageable pageable = PageRequest.of(page, size);
+    Page<LogisticsUser> usersPage = logisticsUserRepository.findAll(pageable);
+
+    // Exclude admin users to protect admin user's details.
+    List<LogisticsUser> filteredUsers = usersPage.getContent().stream().filter(
+        user -> user.getAuthorities().stream().noneMatch(
+            role -> role.getAuthority().equals("ADMIN")))
+        .toList();
+
+    // Convert the users to response DTOs
+    List<UserResponseDto> userResponseDtos = filteredUsers.stream()
+        .map(this::mapToUserResponseDto)
+        .toList();
+
+    return new PageImpl<>(userResponseDtos, pageable, filteredUsers.size());
+  }
+
+  /**
    * Loads a user by their username.
    *
    * <p>This method is required by {@link UserDetailsService} and is used by Spring Security
@@ -154,6 +158,44 @@ public class LogisticsUserService implements UserDetailsService {
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
     return logisticsUserRepository.findByUsername(username)
-        .orElseThrow(() -> new UsernameNotFoundException("user is not valid"));
+        .orElseThrow(() -> new UsernameNotFoundException("User is not valid"));
+  }
+
+  /**
+   * Convert a {@link LogisticsUser} object to a {@link LogisticsUserDto} object.
+   * This method also converts {@link org.springframework.security.core.GrantedAuthority} objects
+   * into {@link Role} objects to reflect the user's roles.
+   *
+   * @param user a {@link LogisticsUser} object containing the user's data to be converted
+   *             to a {@link LogisticsUserDto} object.
+   * @return a {@link LogisticsUserDto} object containing the transformed user data.
+   */
+  public LogisticsUserDto mapToUserDto(LogisticsUser user) {
+    Set<Role> roles = user.getAuthorities().stream()
+        .map(authority -> {
+          Role role = new Role();
+          role.setAuthority(authority.getAuthority());
+          return role;
+        })
+        .collect(Collectors.toSet());
+
+    return new LogisticsUserDto(
+        user.getUserId(),
+        user.getUsername(),
+        user.getEmail(),
+        user.getCreatedAt(),
+        roles
+    );
+  }
+
+  /**
+   * Convert a {@link LogisticsUser} object to a {@link UserResponseDto} object.
+   *
+   * @param user a {@link LogisticsUser} object containing the user's data to be converted to a
+   *             {@link LogisticsUserDto} object.
+   * @return a {@link UserResponseDto} object containing the transformed user data.
+   */
+  public UserResponseDto mapToUserResponseDto(LogisticsUser user) {
+    return new UserResponseDto(user.getUserId(), user.getUsername(), user.getEmail());
   }
 }
