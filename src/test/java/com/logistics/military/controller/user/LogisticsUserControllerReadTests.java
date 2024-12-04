@@ -1,4 +1,4 @@
-package com.logistics.military.controller;
+package com.logistics.military.controller.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.logistics.military.config.AppConfig;
 import com.logistics.military.config.SecurityConfig;
+import com.logistics.military.controller.LogisticsUserController;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
@@ -78,7 +79,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(LogisticsUserController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
-class LogisticsUserControllerTests {
+class LogisticsUserControllerReadTests {
 
   @InjectMocks private LogisticsUserController logisticsUserController;
   @Autowired private MockMvc mockMvc;
