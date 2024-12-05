@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -141,6 +142,30 @@ public class LogisticsUserService implements UserDetailsService {
         .toList();
 
     return new PageImpl<>(userResponseDtos, pageable, filteredUsers.size());
+  }
+
+  /**
+   * Retrieves a user with the specified ID, excluding users with the "ADMIN" role.
+   *
+   * <p>This method queries the database for a user with the given ID. If the user has an
+   * "ADMIN" role, the method returns an empty {@link Optional}. Non-existent user IDs
+   * also result in an empty {@link Optional}.
+   * </p>
+   *
+   * @param id the ID of the user to retrieve
+   * @return an {@link Optional} containing the {@link LogisticsUser} if a user with the specified
+   *         ID exists and does not have the "ADMIN" role, or an empty {@link Optional} otherwise.
+   */
+  public Optional<LogisticsUser> getUserById(Long id) {
+    Optional<LogisticsUser> user = logisticsUserRepository.findById(id);
+
+    // Return an empty Optional if the id belongs to an admin user
+    if (user.isPresent() && user.get().getAuthorities().stream().anyMatch(
+        role -> role.getAuthority().equals("ADMIN")
+    )) {
+      return Optional.empty();
+    }
+    return user;
   }
 
   /**

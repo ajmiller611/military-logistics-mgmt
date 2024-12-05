@@ -1,7 +1,8 @@
-package com.logistics.military.controller;
+package com.logistics.military.controller.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -13,14 +14,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.logistics.military.config.AppConfig;
 import com.logistics.military.config.SecurityConfig;
+import com.logistics.military.controller.LogisticsUserController;
 import com.logistics.military.dto.UserResponseDto;
+import com.logistics.military.model.LogisticsUser;
+import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.security.TokenService;
 import com.logistics.military.service.LogisticsUserService;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,7 +87,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(LogisticsUserController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
-class LogisticsUserControllerTests {
+class LogisticsUserControllerReadTests {
 
   @InjectMocks private LogisticsUserController logisticsUserController;
   @Autowired private MockMvc mockMvc;
@@ -89,14 +98,37 @@ class LogisticsUserControllerTests {
   @MockBean private RoleRepository roleRepository;
   @MockBean private LogisticsUserRepository logisticsUserRepository;
 
+  LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
+  Clock fixedClock =
+      Clock.fixed(
+          fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
+          ZoneId.systemDefault());
+
+  Long testUserId;
+  LogisticsUser user;
+
   /**
    * Sets up a mock response for the 'getUsers' method with default parameters (page = 0, size = 10)
    * for each test.
+   *
+   * <p>Sets up a test user object and test user id for use during 'getUserById' method tests.
+   * </p>
    */
   @BeforeEach
   void setUp() {
     Page<UserResponseDto> pagedUsers = createPagedUserResponseDtos(0, 10);
     when(logisticsUserService.getUsers(0, 10)).thenReturn(pagedUsers);
+
+    Role userRole = new Role("USER");
+    user = new LogisticsUser(
+        2L,
+        "testUser",
+        "password",
+        "test@example.com",
+        fixedTimestamp,
+        Set.of(userRole)
+    );
+    testUserId = 2L;
   }
 
   /**
@@ -335,5 +367,67 @@ class LogisticsUserControllerTests {
         new UserResponseDto(3L, "testUser1", "test1@example.com")
     );
     return new PageImpl<>(users, PageRequest.of(page, size), users.size());
+  }
+
+  /**
+   * Verifies a valid user id responds successfully with the user data of that id.
+   */
+  @Test
+  @WithMockUser()
+  void givenValidIdWhenGetUserByIdThenSuccessAndExpectedData() throws Exception {
+    when(logisticsUserService.getUserById(testUserId)).thenReturn(Optional.of(user));
+
+    mockMvc.perform(get("/users/2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("success"))
+        .andExpect(jsonPath("$.message").value("User retrieved successfully"))
+        .andExpect(jsonPath("$.data.userId").value(testUserId))
+        .andExpect(jsonPath("$.data.username").value(user.getUsername()))
+        .andExpect(jsonPath("$.data.email").value(user.getEmail()));
+
+    verify(logisticsUserService, times(1)).getUserById(testUserId);
+  }
+
+  /**
+   * Verifies an invalid parameter type responds with a bad request error.
+   */
+  @Test
+  @WithMockUser()
+  void givenInvalidParamsTypeWhenGetUserByIdThenBadRequest() throws Exception {
+    mockMvc.perform(get("/users/string"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Invalid argument data type"));
+  }
+
+  /**
+   * Verifies an invalid user id responds with a bad request error.
+   */
+  @Test
+  @WithMockUser()
+  void givenInvalidUserIdWhenGetUserByIdThenBadRequestException() throws Exception {
+    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
+      mockMvc.perform(get("/users/0"))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.status").value("error"))
+          .andExpect(jsonPath("$.message").value("User id must be greater than zero"));
+
+      assertThat(logCaptor.getErrorLogs())
+          .anyMatch(log ->
+              log.contains("Attempted to get user by id with a non positive number"));
+    }
+  }
+
+  /**
+   * Verifies a user id that does not exist responds with a not found error.
+   */
+  @Test
+  @WithMockUser()
+  void givenNonExistingUserIdWhenGetUserByIdThenNotFound() throws Exception {
+    when(logisticsUserService.getUserById(any(Long.class))).thenReturn(Optional.empty());
+
+    mockMvc.perform(get("/users/5"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value("error"))
+        .andExpect(jsonPath("$.message").value("User with id 5 does not exist"));
   }
 }
