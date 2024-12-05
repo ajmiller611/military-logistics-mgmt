@@ -24,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Unit tests for {@link GlobalExceptionHandler}.
@@ -33,7 +34,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class GlobalExceptionHandlerTests {
+class GlobalExceptionHandlerTests {
 
   @InjectMocks private GlobalExceptionHandler globalExceptionHandler;
   @Mock private Clock clock;
@@ -140,6 +141,27 @@ public class GlobalExceptionHandlerTests {
     ResponseEntity<Map<String, String>> response =
         globalExceptionHandler.handleUserAlreadyExists(exception);
     assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+    assertEquals(expectedResponse, response.getBody());
+  }
+
+  /**
+   * Tests the {@code handleArgumentTypeMismatch} method. Verifies that a
+   * {@link MethodArgumentTypeMismatchException} results in an HTTP 400 (Bad Request) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenMethodArgumentTypeMismatchExceptionWhenHandleArgumentTypeMismatchThenBadRequest() {
+    MethodArgumentTypeMismatchException exception = mock(MethodArgumentTypeMismatchException.class);
+    when(exception.getMessage()).thenReturn("Argument data type mismatch");
+
+    Map<String, String> expectedResponse = new HashMap<>();
+    expectedResponse.put("error", "Invalid argument data type");
+    expectedResponse.put("message", "Argument data type mismatch");
+
+    ResponseEntity<Map<String, String>> response =
+        globalExceptionHandler.handleArgumentTypeMismatch(exception);
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals(expectedResponse, response.getBody());
   }
 }
