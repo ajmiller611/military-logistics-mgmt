@@ -6,12 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.HashMap;
+import com.logistics.military.response.ResponseWrapper;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,14 +35,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 class GlobalExceptionHandlerTests {
 
   @InjectMocks private GlobalExceptionHandler globalExceptionHandler;
-  @Mock private Clock clock;
   @Mock private BindingResult bindingResult;
-
-  LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
-  Clock fixedClock =
-      Clock.fixed(
-          fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
-          ZoneId.systemDefault());
 
   /**
    * Tests the {@code handleValidationException} method in {@link GlobalExceptionHandler}.
@@ -60,23 +51,13 @@ class GlobalExceptionHandlerTests {
     when(fieldError.getDefaultMessage()).thenReturn("Username is required");
     when(bindingResult.getAllErrors()).thenReturn(List.of(fieldError));
 
-    Map<String, Object> expectedResponse = new HashMap<>();
-    expectedResponse.put("status", HttpStatus.BAD_REQUEST.value());
-    expectedResponse.put("error", "Bad Request");
-    expectedResponse.put("message", "Validation failed");
-
-    when(clock.instant()).thenReturn(fixedClock.instant());
-    when(clock.getZone()).thenReturn(fixedClock.getZone());
-    expectedResponse.put("timestamp", fixedTimestamp);
-
-    Map<String, String> details = new HashMap<>();
-    details.put("username", "Username is required");
-    expectedResponse.put("details", details);
-
-    ResponseEntity<Map<String, Object>> response =
+    ResponseEntity<ResponseWrapper<Map<String, String>>> response =
         globalExceptionHandler.handleValidationException(exception);
+
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    assertEquals(expectedResponse, response.getBody());
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+    assertEquals("Validation Failed", response.getBody().getMessage());
+    assertEquals("Username is required", response.getBody().getData().get("username"));
   }
 
   /**
@@ -93,15 +74,13 @@ class GlobalExceptionHandlerTests {
     UnrecognizedPropertyException exception = mock(UnrecognizedPropertyException.class);
     when(exception.getPropertyName()).thenReturn("user_id");
 
-    Map<String, String> expectedResponse = new HashMap<>();
-    expectedResponse.put("error", "Invalid request body");
-    expectedResponse.put("message", "Unrecognized field: user_id");
-
     try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
-      ResponseEntity<Map<String, String>> response =
+      ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUnknownProperty(exception);
+
       assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals(expectedResponse, response.getBody());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("Unrecognized field named 'user_id'.", response.getBody().getMessage());
 
       assertThat(logCaptor.getWarnLogs())
           .anyMatch(log -> log.contains("Potential misuse:")
@@ -109,15 +88,14 @@ class GlobalExceptionHandlerTests {
     }
 
     when(exception.getPropertyName()).thenReturn("unknownField");
-    expectedResponse = new HashMap<>();
-    expectedResponse.put("error", "Invalid request body");
-    expectedResponse.put("message", "Unrecognized field: unknownField");
 
     try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
-      ResponseEntity<Map<String, String>> response = globalExceptionHandler.handleUnknownProperty(
-          exception);
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleUnknownProperty(exception);
+
       assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals(expectedResponse, response.getBody());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("Unrecognized field named 'unknownField'.", response.getBody().getMessage());
 
       assertThat(logCaptor.getWarnLogs())
           .anyMatch(log -> log.contains("Unrecognized field named")
@@ -134,14 +112,12 @@ class GlobalExceptionHandlerTests {
   void givenUserAlreadyExistsExceptionWhenHandleUserAlreadyExistsThenConflict() {
     UserAlreadyExistsException exception = new UserAlreadyExistsException("User already exists");
 
-    Map<String, String> expectedResponse = new HashMap<>();
-    expectedResponse.put("error", "User already exists");
-    expectedResponse.put("message", "User already exists");
-
-    ResponseEntity<Map<String, String>> response =
+    ResponseEntity<ResponseWrapper<String>> response =
         globalExceptionHandler.handleUserAlreadyExists(exception);
+
     assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-    assertEquals(expectedResponse, response.getBody());
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+    assertThat(response.getBody().getMessage()).contains("User already exists");
   }
 
   /**
@@ -152,16 +128,12 @@ class GlobalExceptionHandlerTests {
   @Test
   void givenMethodArgumentTypeMismatchExceptionWhenHandleArgumentTypeMismatchThenBadRequest() {
     MethodArgumentTypeMismatchException exception = mock(MethodArgumentTypeMismatchException.class);
-    when(exception.getMessage()).thenReturn("Argument data type mismatch");
 
-    Map<String, String> expectedResponse = new HashMap<>();
-    expectedResponse.put("error", "Invalid argument data type");
-    expectedResponse.put("message", "Argument data type mismatch");
-
-    ResponseEntity<Map<String, String>> response =
+    ResponseEntity<ResponseWrapper<Object>> response =
         globalExceptionHandler.handleArgumentTypeMismatch(exception);
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    assertEquals(expectedResponse, response.getBody());
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+    assertEquals("Invalid argument data type", response.getBody().getMessage());
   }
 }
