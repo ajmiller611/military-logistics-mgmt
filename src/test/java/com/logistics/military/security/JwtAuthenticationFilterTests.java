@@ -42,7 +42,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class JwtAuthenticationFilterTests {
+class JwtAuthenticationFilterTests {
 
   @InjectMocks private JwtAuthenticationFilter jwtAuthenticationFilter;
   @Mock private TokenService tokenService;
@@ -149,7 +149,7 @@ public class JwtAuthenticationFilterTests {
     jwtAuthenticationFilter.doFilter(request, response, filterChain);
 
     assertThrows(JwtException.class,
-        () -> tokenService.jwtDecoder().decode(invalidToken),
+        () -> jwtDecoder.decode(invalidToken),
         "Expected decode to throw an exception when invalid token");
 
     verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");

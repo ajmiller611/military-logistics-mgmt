@@ -1,6 +1,6 @@
 package com.logistics.military.config;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mockStatic;
 
 import com.logistics.military.util.KeyGeneratorUtility;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.security.InvalidParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -32,7 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class RsaKeyConfigurationTests {
+class RsaKeyConfigurationTests {
 
   @InjectMocks private RsaKeyProperties rsaKeyProperties;
 
@@ -69,7 +70,7 @@ public class RsaKeyConfigurationTests {
   void givenGenerateRsaKeyWhenCalledThenReturnNonNullKeyPair() {
     KeyPair keyPair = KeyGeneratorUtility.generateRsaKey();
     assertNotNull(keyPair, "Generated KeyPair should not be null");
-    assertNotNull(keyPair.getPublic(), "Public key should not be null");;
+    assertNotNull(keyPair.getPublic(), "Public key should not be null");
     assertNotNull(keyPair.getPrivate(), "Private key should not be null");
   }
 
@@ -95,15 +96,23 @@ public class RsaKeyConfigurationTests {
   }
 
   /**
-   * Test to invoke the constructor of {@link KeyGeneratorUtility} for code coverage purposes.
+   * Test the invocation of the constructor of {@link KeyGeneratorUtility} throws an error.
    */
   @Test
   void constructorInvocationForCoverage() {
-    assertDoesNotThrow(() -> {
+    // InvocationTargetException is thrown when the constructor is invoked by reflection
+    InvocationTargetException exception = assertThrows(InvocationTargetException.class, () -> {
       Constructor<KeyGeneratorUtility> constructor =
           KeyGeneratorUtility.class.getDeclaredConstructor();
       constructor.setAccessible(true);
       constructor.newInstance();
     });
+
+    /*
+     * The IllegalStateException is wrapped inside the InvocationTargetException so checking the
+     * cause will find the thrown IllegalStateException.
+     */
+    assertInstanceOf(IllegalStateException.class, exception.getCause());
+    assertEquals("Utility class should not be instantiated", exception.getCause().getMessage());
   }
 }

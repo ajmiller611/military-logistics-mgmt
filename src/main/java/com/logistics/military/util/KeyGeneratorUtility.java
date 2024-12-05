@@ -14,6 +14,13 @@ import java.security.KeyPairGenerator;
 public class KeyGeneratorUtility {
 
   /**
+   * Private constructor for the Utility class to throw an exception if instantiation is attempted.
+   */
+  private KeyGeneratorUtility() {
+    throw new IllegalStateException("Utility class should not be instantiated");
+  }
+
+  /**
    * Generates a new RSA key pair with a key size of 2048 bits.
    *
    * <p>This method initializes a {@link KeyPairGenerator} with the RSA algorithm and a key size of

@@ -47,6 +47,9 @@ public class AuthenticationController {
   private final AuthenticationService authenticationService;
   private final TokenService tokenService;
 
+  public static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
+  public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
+
   /**
    * Registers a new user in the system.
    *
@@ -114,7 +117,8 @@ public class AuthenticationController {
     AuthTokensDto authTokensDto = authenticationService.loginUser(body);
 
     if (authTokensDto.getAccessToken() != null && !authTokensDto.getAccessToken().isEmpty())  {
-      Cookie accessTokenCookie = new Cookie("access_token", authTokensDto.getAccessToken());
+      Cookie accessTokenCookie =
+          new Cookie(ACCESS_TOKEN_COOKIE_NAME, authTokensDto.getAccessToken());
       accessTokenCookie.setHttpOnly(true);
       accessTokenCookie.setSecure(true); // Requires HTTPS in production
       accessTokenCookie.setPath("/");
@@ -123,7 +127,7 @@ public class AuthenticationController {
       response.addCookie(accessTokenCookie);
 
       Cookie refreshTokenCookie =
-          new Cookie("refresh_token", authTokensDto.getRefreshToken());
+          new Cookie(REFRESH_TOKEN_COOKIE_NAME, authTokensDto.getRefreshToken());
       refreshTokenCookie.setHttpOnly(true);
       refreshTokenCookie.setSecure(true); // Requires HTTPS in production
       refreshTokenCookie.setPath("/");
@@ -172,7 +176,7 @@ public class AuthenticationController {
       Cookie[] cookies = request.getCookies();
       if (cookies != null) {
         for (Cookie cookie : cookies) {
-          if ("refresh_token".equals(cookie.getName())) {
+          if (REFRESH_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
             refreshToken = cookie.getValue();
             break;
           }
@@ -208,14 +212,14 @@ public class AuthenticationController {
       String newRefreshToken = tokenService.generateRefreshToken(auth);
 
       // Create the access token cookie
-      Cookie newAccessTokenCookie = new Cookie("access_token", newAccessToken);
+      Cookie newAccessTokenCookie = new Cookie(ACCESS_TOKEN_COOKIE_NAME, newAccessToken);
       newAccessTokenCookie.setHttpOnly(true);
       newAccessTokenCookie.setSecure(true); // Requires HTTPS is used in production
       newAccessTokenCookie.setPath("/");
       newAccessTokenCookie.setMaxAge(15 * 60); // 15 minutes expiration
 
       // Create the refresh token cookie
-      Cookie newRefreshTokenCookie = new Cookie("refresh_token", newRefreshToken);
+      Cookie newRefreshTokenCookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken);
       newRefreshTokenCookie.setHttpOnly(true);
       newRefreshTokenCookie.setSecure(true); // Requires HTTPS is used in production
       newRefreshTokenCookie.setPath("/");

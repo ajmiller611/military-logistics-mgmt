@@ -77,7 +77,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(AuthenticationController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
-public class AuthenticationControllerTests {
+class AuthenticationControllerTests {
 
   @InjectMocks private AuthenticationController authenticationController;
   @Autowired private MockMvc mockMvc;

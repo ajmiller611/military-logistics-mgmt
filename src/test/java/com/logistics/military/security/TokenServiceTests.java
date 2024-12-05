@@ -48,7 +48,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class TokenServiceTests {
+class TokenServiceTests {
 
   @InjectMocks private TokenService tokenService;
 

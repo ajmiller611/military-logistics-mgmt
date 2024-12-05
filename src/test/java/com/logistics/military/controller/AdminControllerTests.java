@@ -59,7 +59,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(AdminController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
-public class AdminControllerTests {
+class AdminControllerTests {
 
   @InjectMocks private LogisticsUserController logisticsUserController;
   @Autowired private MockMvc mockMvc;

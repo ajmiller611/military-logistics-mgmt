@@ -98,7 +98,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        .csrf((csrf) -> csrf.ignoringRequestMatchers("/auth/**"))
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/auth/**"))
         .authorizeHttpRequests(auth -> {
           auth.requestMatchers("/auth/**").permitAll();
           auth.requestMatchers("/admin/**").hasRole("ADMIN");
@@ -106,9 +106,9 @@ public class SecurityConfig {
           auth.anyRequest().authenticated();
         });
     http
-        .oauth2ResourceServer((oauth2ResourceServer) ->
+        .oauth2ResourceServer(oauth2ResourceServer ->
             oauth2ResourceServer
-                .jwt((jwt) ->
+                .jwt(jwt ->
                     jwt
                         .jwtAuthenticationConverter(jwtAuthenticationConverter)));
     http
