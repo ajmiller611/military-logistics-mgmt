@@ -33,7 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class RsaKeyConfigurationTests {
+class RsaKeyConfigurationTests {
 
   @InjectMocks private RsaKeyProperties rsaKeyProperties;
 
@@ -70,7 +70,7 @@ public class RsaKeyConfigurationTests {
   void givenGenerateRsaKeyWhenCalledThenReturnNonNullKeyPair() {
     KeyPair keyPair = KeyGeneratorUtility.generateRsaKey();
     assertNotNull(keyPair, "Generated KeyPair should not be null");
-    assertNotNull(keyPair.getPublic(), "Public key should not be null");;
+    assertNotNull(keyPair.getPublic(), "Public key should not be null");
     assertNotNull(keyPair.getPrivate(), "Private key should not be null");
   }
 
