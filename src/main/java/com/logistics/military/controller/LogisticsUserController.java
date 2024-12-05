@@ -1,10 +1,13 @@
 package com.logistics.military.controller;
 
 import com.logistics.military.dto.UserResponseDto;
+import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.response.PaginatedData;
 import com.logistics.military.response.ResponseWrapper;
 import com.logistics.military.service.LogisticsUserService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -12,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -92,6 +96,39 @@ public class LogisticsUserController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
           ResponseWrapper.error("An unexpected error occurred")
       );
+    }
+  }
+
+  /**
+   * Retrieves a user by id.
+   */
+  @GetMapping("/{id}")
+  public ResponseEntity<ResponseWrapper<UserResponseDto>> getUserById(
+      @PathVariable(name = "id") Long id) {
+
+    logger.info("Endpoint '/user/{id}' received request with id = {}", id);
+    try {
+      if (id <= 0) {
+        throw new BadRequestException("User id must be greater than zero");
+      }
+      Optional<LogisticsUser> user = logisticsUserService.getUserById(id);
+
+      if (user.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
+      }
+
+      UserResponseDto responseDto = new UserResponseDto(
+          user.get().getUserId(),
+          user.get().getUsername(),
+          user.get().getEmail()
+      );
+      return ResponseEntity.ok(
+          ResponseWrapper.success(responseDto, "User retrieved successfully"));
+    } catch (BadRequestException e) {
+      logger.error("Attempted to get user by id with a non positive number");
+      return ResponseEntity.badRequest().body(
+          ResponseWrapper.error("User id must be greater than zero"));
     }
   }
 }
