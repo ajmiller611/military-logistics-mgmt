@@ -20,6 +20,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,13 @@ import org.springframework.test.context.ActiveProfiles;
  * <ul>
  *   <li>Pagination and filtering logic for retrieving user data, including exclusion
  *       of admin users from results.</li>
+ *   <li>Fetching individual users by ID, including handling cases for admin users
+ *       and non-existent IDs.</li>
  * </ul>
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class LogisticsUserServiceReadTests {
+class LogisticsUserServiceReadTests {
 
   @InjectMocks
   private LogisticsUserService logisticsUserService;
@@ -340,5 +343,60 @@ public class LogisticsUserServiceReadTests {
     List<LogisticsUser> pageContent = usersList.subList(start, end);
 
     return new PageImpl<>(pageContent, PageRequest.of(page, pageSize), pageContent.size());
+  }
+
+  /**
+   * Verifies that a valid id returns the user's data.
+   */
+  @Test
+  void givenValidIdWhenGetUserByIdThenReturnUser() {
+    Optional<LogisticsUser> optionalLogisticsUser = Optional.of(user);
+    when(logisticsUserRepository.findById(2L)).thenReturn(optionalLogisticsUser);
+
+    Optional<LogisticsUser> result = logisticsUserService.getUserById(2L);
+
+    verify(logisticsUserRepository, times(1)).findById(2L);
+    assertNotNull(result);
+    assertTrue(result.isPresent());
+    assertEquals(user.getUserId(), result.get().getUserId());
+    assertEquals(user.getUsername(), result.get().getUsername());
+    assertEquals(user.getEmail(), result.get().getEmail());
+  }
+
+  /**
+   * Verifies that an id of a user with an 'ADMIN' role returns an empty Optional instance.
+   */
+  @Test
+  void givenAdminIdTypeWhenGetUserByIdThenReturnEmptyOptional() {
+    Role adminRole = new Role("ADMIN");
+    LogisticsUser adminUser = new LogisticsUser(
+        1L,
+        "admin",
+        "password",
+        "admin@example.com",
+        fixedTimestamp,
+        Set.of(adminRole, userRole)
+    );
+    when(logisticsUserRepository.findById(1L)).thenReturn(Optional.of(adminUser));
+
+    Optional<LogisticsUser> result = logisticsUserService.getUserById(1L);
+
+    verify(logisticsUserRepository, times(1)).findById(1L);
+    assertNotNull(result);
+    assertTrue(result.isEmpty());
+  }
+
+  /**
+   * Verifies that when an id doesn't exist then returns an empty optional.
+   */
+  @Test
+  void givenNonExistentUserIdWhenGetUserByIdThenReturnEmptyOptional() {
+    when(logisticsUserRepository.findById(10L)).thenReturn(Optional.empty());
+
+    Optional<LogisticsUser> result = logisticsUserService.getUserById(10L);
+
+    verify(logisticsUserRepository, times(1)).findById(10L);
+    assertNotNull(result);
+    assertTrue(result.isEmpty());
   }
 }
