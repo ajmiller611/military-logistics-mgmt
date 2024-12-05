@@ -62,7 +62,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class AuthenticationServiceTests {
+class AuthenticationServiceTests {
 
   @InjectMocks private AuthenticationService authenticationService;
   @Mock private AuthenticationManager authenticationManager;

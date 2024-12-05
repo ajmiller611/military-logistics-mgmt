@@ -42,7 +42,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
-public class JwtAuthenticationFilterTests {
+class JwtAuthenticationFilterTests {
 
   @InjectMocks private JwtAuthenticationFilter jwtAuthenticationFilter;
   @Mock private TokenService tokenService;
