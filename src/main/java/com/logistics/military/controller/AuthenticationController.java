@@ -117,7 +117,8 @@ public class AuthenticationController {
     AuthTokensDto authTokensDto = authenticationService.loginUser(body);
 
     if (authTokensDto.getAccessToken() != null && !authTokensDto.getAccessToken().isEmpty())  {
-      Cookie accessTokenCookie = new Cookie(ACCESS_TOKEN_COOKIE_NAME, authTokensDto.getAccessToken());
+      Cookie accessTokenCookie =
+          new Cookie(ACCESS_TOKEN_COOKIE_NAME, authTokensDto.getAccessToken());
       accessTokenCookie.setHttpOnly(true);
       accessTokenCookie.setSecure(true); // Requires HTTPS in production
       accessTokenCookie.setPath("/");
