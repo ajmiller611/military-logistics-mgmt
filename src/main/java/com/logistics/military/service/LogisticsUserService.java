@@ -102,6 +102,7 @@ public class LogisticsUserService implements UserDetailsService {
     // Save the user in the database to generate userId.
     try {
       user = logisticsUserRepository.save(user);
+      // TODO: Refactor exception handling to comply with best practices
     } catch (Exception e) {
       logger.error("Error occurred while saving user: {}", e.getMessage());
       throw new RuntimeException("An unexpected error occurred while creating the user.", e);
