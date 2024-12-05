@@ -16,6 +16,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Global exception handler for handling application-wide exceptions.
@@ -104,5 +105,22 @@ public class GlobalExceptionHandler {
     errorResponse.put("error", "User already exists");
     errorResponse.put("message", ex.getMessage());
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+  }
+
+  /**
+   * Handles exceptions for {@link MethodArgumentTypeMismatchException} when arguments are
+   * the wrong type.
+   *
+   * @param ex the {@link MethodArgumentTypeMismatchException} containing error details about
+   *           the type mismatch
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 400
+   */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<Map<String, String>> handleArgumentTypeMismatch(
+      MethodArgumentTypeMismatchException ex) {
+    Map<String, String> errorResponse = new HashMap<>();
+    errorResponse.put("error", "Invalid argument data type");
+    errorResponse.put("message", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
 }
