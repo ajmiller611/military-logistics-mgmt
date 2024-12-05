@@ -87,11 +87,8 @@ public class AuthenticationService {
           tokens.get("refreshToken"),
           logisticsUserDto
       );
-    } catch (AuthenticationException e) {
+    } catch (AuthenticationException | NoSuchElementException e) {
       // Return an empty tokens and null user dto in case of authentication failure
-      return new AuthTokensDto("", "", null);
-    } catch (NoSuchElementException e) {
-      // Return an empty tokens and null user dto in case of username not existing in the database
       return new AuthTokensDto("", "", null);
     }
   }
