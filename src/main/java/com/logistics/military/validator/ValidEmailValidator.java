@@ -3,7 +3,7 @@ package com.logistics.military.validator;
 import com.logistics.military.annotation.ValidEmail;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import java.util.Objects;
+import java.util.Arrays;
 
 /**
  * Validator class for the {@link ValidEmail} annotation.
@@ -69,12 +69,12 @@ public class ValidEmailValidator
       return false;
     }
 
+    String topLevelDomain = domainParts[domainParts.length - 1];
+    // Remove the top level domain from the array
+    domainParts = Arrays.copyOfRange(domainParts, 0, domainParts.length - 1);
+
     String domainPattern = "^[A-Za-z0-9.-]+$";
     for (String part : domainParts) {
-      // Skip last element since it is the domain extension
-      if (Objects.equals(part, domainParts[domainParts.length - 1])) {
-        break;
-      }
       // Empty means consecutive periods in the email which is valid
       if (part.isEmpty()) {
         continue;
@@ -90,7 +90,6 @@ public class ValidEmailValidator
     }
 
     String topLevelDomainPattern = "^[A-Za-z]{2,}$";
-    String topLevelDomain = domainParts[domainParts.length - 1];
     if (!topLevelDomain.matches(topLevelDomainPattern)) {
       context.disableDefaultConstraintViolation();
       context.buildConstraintViolationWithTemplate("Domain extension is invalid."
