@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+// TODO: Refactor the error response structure to use the Response Wrapper class which
+//  will eliminate the current string literal duplication problem.
 /**
  * Global exception handler for handling application-wide exceptions.
  * This class provides specific handlers for validation errors, unrecognized JSON fields,
