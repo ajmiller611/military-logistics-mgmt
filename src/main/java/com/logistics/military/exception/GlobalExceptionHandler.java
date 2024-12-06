@@ -1,8 +1,7 @@
 package com.logistics.military.exception;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import java.time.Clock;
-import java.time.LocalDateTime;
+import com.logistics.military.response.ResponseWrapper;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -18,8 +17,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-// TODO: Refactor the error response structure to use the Response Wrapper class which
-//  will eliminate the current string literal duplication problem.
 /**
  * Global exception handler for handling application-wide exceptions.
  * This class provides specific handlers for validation errors, unrecognized JSON fields,
@@ -34,23 +31,17 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
-  private final Clock clock;
 
   /**
    * Handles validation exceptions thrown when method arguments fail validation.
    * Captures details about invalid fields and provides a structured error response.
    *
    * @param ex the {@link MethodArgumentNotValidException} containing validation error details
-   * @return a {@link ResponseEntity} containing the error response map with HTTP status 400
+   * @return a {@link ResponseEntity} containing the error response with HTTP status 400
    */
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<Map<String, Object>> handleValidationException(
+  public ResponseEntity<ResponseWrapper<Map<String, String>>> handleValidationException(
       MethodArgumentNotValidException ex) {
-    Map<String, Object> errorResponse = new HashMap<>();
-    errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
-    errorResponse.put("error", "Bad Request");
-    errorResponse.put("message", "Validation failed");
-    errorResponse.put("timestamp", LocalDateTime.now(clock));
 
     Map<String, String> details = new HashMap<>();
     ex.getBindingResult().getAllErrors().forEach(error -> {
@@ -58,8 +49,10 @@ public class GlobalExceptionHandler {
       String errorMessage = error.getDefaultMessage();
       details.put(fieldName, errorMessage);
     });
-    errorResponse.put("details", details);
-    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+
+    ResponseWrapper<Map<String, String>> response = ResponseWrapper.error("Validation failed");
+    response.setData(details);
+    return ResponseEntity.badRequest().body(response);
   }
 
   /**
@@ -69,10 +62,10 @@ public class GlobalExceptionHandler {
    *
    * @param ex the {@link UnrecognizedPropertyException} containing details about the unrecognized
    *           property
-   * @return a {@link ResponseEntity} containing the error response map with HTTP status 400
+   * @return a {@link ResponseEntity} containing the error response with HTTP status 400
    */
   @ExceptionHandler(UnrecognizedPropertyException.class)
-  public ResponseEntity<Map<String, String>> handleUnknownProperty(
+  public ResponseEntity<ResponseWrapper<String>> handleUnknownProperty(
       UnrecognizedPropertyException ex) {
     String propertyName = ex.getPropertyName();
 
@@ -86,10 +79,9 @@ public class GlobalExceptionHandler {
       logger.warn("Unrecognized field named '{}' found in a registration request.", propertyName);
     }
 
-    Map<String, String> errorResponse = new HashMap<>();
-    errorResponse.put("error", "Invalid request body");
-    errorResponse.put("message", "Unrecognized field: " + ex.getPropertyName());
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    return ResponseEntity.badRequest().body(
+        ResponseWrapper.error(String.format("Unrecognized field named '%s'.", propertyName))
+    );
   }
 
   /**
@@ -98,15 +90,14 @@ public class GlobalExceptionHandler {
    *
    * @param ex the {@link UserAlreadyExistsException} containing error details about the existing
    *           user conflict
-   * @return a {@link ResponseEntity} containing the error response map with HTTP status 409
+   * @return a {@link ResponseEntity} containing the error response with HTTP status 409
    */
   @ExceptionHandler(UserAlreadyExistsException.class)
-  public ResponseEntity<Map<String, String>> handleUserAlreadyExists(
+  public ResponseEntity<ResponseWrapper<String>> handleUserAlreadyExists(
       UserAlreadyExistsException ex) {
-    Map<String, String> errorResponse = new HashMap<>();
-    errorResponse.put("error", "User already exists");
-    errorResponse.put("message", ex.getMessage());
-    return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        ResponseWrapper.error(ex.getMessage())
+    );
   }
 
   /**
@@ -118,11 +109,10 @@ public class GlobalExceptionHandler {
    * @return a {@link ResponseEntity} containing the error response with the HTTP status of 400
    */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<Map<String, String>> handleArgumentTypeMismatch(
+  public ResponseEntity<ResponseWrapper<Object>> handleArgumentTypeMismatch(
       MethodArgumentTypeMismatchException ex) {
-    Map<String, String> errorResponse = new HashMap<>();
-    errorResponse.put("error", "Invalid argument data type");
-    errorResponse.put("message", ex.getMessage());
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    return ResponseEntity.badRequest().body(
+        ResponseWrapper.error("Invalid argument data type")
+    );
   }
 }
