@@ -222,8 +222,8 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.error").value("Invalid request body"))
-        .andExpect(jsonPath("$.message").value(containsString("Unrecognized field:")));
+        .andExpect(jsonPath("$.status").value("error"))
+        .andExpect(jsonPath("$.message").value("Unrecognized field named 'userId'."));
   }
 
   /**
@@ -245,10 +245,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.username")
+        .andExpect(jsonPath("$.data.username")
             .value("Username is required"));
 
     // Test empty username
@@ -264,10 +263,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.username")
+        .andExpect(jsonPath("$.data.username")
             .value("Username is required"));
 
     // Test username is too short
@@ -283,10 +281,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.username")
+        .andExpect(jsonPath("$.data.username")
             .value("Username must be between 3 and 20 characters"));
 
     // Test username is too long
@@ -302,10 +299,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.username")
+        .andExpect(jsonPath("$.data.username")
             .value("Username must be between 3 and 20 characters"));
   }
 
@@ -328,10 +324,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.password")
+        .andExpect(jsonPath("$.data.password")
             .value("Password is required"));
 
     // Test password is empty
@@ -347,10 +342,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.password")
+        .andExpect(jsonPath("$.data.password")
             .value("Password is required"));
 
     // Test password is too short
@@ -366,10 +360,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.password")
+        .andExpect(jsonPath("$.data.password")
             .value("Password must be at least 8 characters"));
   }
 
@@ -392,10 +385,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Email is required"));
 
 
@@ -412,10 +404,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Email is required"));
 
     // Test email missing @ symbol
@@ -431,10 +422,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Email invalid. Missing '@' symbol"));
 
     // Test username of email is invalid
@@ -450,10 +440,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Username of Email is invalid."
                 + " Only letters, digits, '+', '_', '.', and '-' are valid."));
 
@@ -470,10 +459,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain extension is missing (no period)."));
 
     // Test email missing domain extension
@@ -489,10 +477,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain extension is missing."));
 
     // Test domain part of email is invalid with invalid character
@@ -508,10 +495,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain of Email is invalid."
                 + " Only letters, digits, '.', and '-' are valid."));
 
@@ -528,10 +514,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain of Email is invalid."
                 + " Only letters, digits, '.', and '-' are valid."));
 
@@ -548,10 +533,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain extension is invalid."
                 + " Only letters are valid and must be at least 2 characters."));
 
@@ -568,10 +552,9 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value(400))
-        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.details.email")
+        .andExpect(jsonPath("$.data.email")
             .value("Domain extension is invalid."
                 + " Only letters are valid and must be at least 2 characters."));
   }

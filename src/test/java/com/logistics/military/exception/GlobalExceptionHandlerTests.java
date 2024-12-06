@@ -56,7 +56,7 @@ class GlobalExceptionHandlerTests {
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-    assertEquals("Validation Failed", response.getBody().getMessage());
+    assertEquals("Validation failed", response.getBody().getMessage());
     assertEquals("Username is required", response.getBody().getData().get("username"));
   }
 

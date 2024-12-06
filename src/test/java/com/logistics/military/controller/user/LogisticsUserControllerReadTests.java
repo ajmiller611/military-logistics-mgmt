@@ -396,7 +396,8 @@ class LogisticsUserControllerReadTests {
   void givenInvalidParamsTypeWhenGetUserByIdThenBadRequest() throws Exception {
     mockMvc.perform(get("/users/string"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.error").value("Invalid argument data type"));
+        .andExpect(jsonPath("$.status").value("error"))
+        .andExpect(jsonPath("$.message").value("Invalid argument data type"));
   }
 
   /**

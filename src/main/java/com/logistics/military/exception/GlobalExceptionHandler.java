@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
       details.put(fieldName, errorMessage);
     });
 
-    ResponseWrapper<Map<String, String>> response = ResponseWrapper.error("Validation Failed");
+    ResponseWrapper<Map<String, String>> response = ResponseWrapper.error("Validation failed");
     response.setData(details);
     return ResponseEntity.badRequest().body(response);
   }
