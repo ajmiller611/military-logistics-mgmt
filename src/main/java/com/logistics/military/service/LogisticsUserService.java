@@ -4,6 +4,7 @@ import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
+import com.logistics.military.exception.UserCreationException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -102,10 +104,11 @@ public class LogisticsUserService implements UserDetailsService {
     // Save the user in the database to generate userId.
     try {
       user = logisticsUserRepository.save(user);
-      // TODO: Refactor exception handling to comply with best practices
+    } catch (DataAccessException e) {
+      throw new UserCreationException("An error occurred while saving the user to the database", e);
     } catch (Exception e) {
-      logger.error("Error occurred while saving user: {}", e.getMessage());
-      throw new RuntimeException("An unexpected error occurred while creating the user.", e);
+      throw new UserCreationException(
+          "An unexpected error occurred while saving the user to the database", e);
     }
 
     logger.info("LogisticsUser created: {}", user);

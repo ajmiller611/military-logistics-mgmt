@@ -1,9 +1,12 @@
 package com.logistics.military.service.user;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
+import com.logistics.military.exception.UserCreationException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -27,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -215,22 +220,48 @@ class LogisticsUserServiceCreateTests {
 
   /**
    * Test case for when an error occurs when trying to save the user to the database. The service
-   * should throw a {@link RuntimeException} when a database error occurs.
+   * should throw a {@link UserCreationException} when a database error occurs.
    */
   @Test
-  void givenDatabaseErrorWhenCreateAndSaveUserThenThrowRuntimeException() {
+  void givenDatabaseErrorWhenCreateAndSaveUserThenThrowUserCreationException() {
     when(logisticsUserRepository.findByUsername(userRequestDto.getUsername()))
         .thenReturn(Optional.empty());
     when(clock.instant()).thenReturn(fixedClock.instant());
     when(clock.getZone()).thenReturn(fixedClock.getZone());
     when(roleRepository.findByAuthority("USER")).thenReturn(Optional.of(userRole));
-    when(logisticsUserRepository.save(any(LogisticsUser.class)))
-        .thenThrow(new RuntimeException("Database save error"));
 
-    assertThrows(RuntimeException.class,
+    DataAccessException mockDataAccessException = mock(DataAccessException.class);
+    when(mockDataAccessException.getMessage()).thenReturn("Database save error");
+    when(logisticsUserRepository.save(any(LogisticsUser.class)))
+        .thenThrow(mockDataAccessException);
+
+    UserCreationException exception = assertThrows(UserCreationException.class,
         () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception when error saving"
+        "Expected createAndSaveUser to throw UserCreationException when error saving"
         + " to the database occurs.");
+
+    assertEquals("An error occurred while saving the user to the database", exception.getMessage());
+    assertNotNull(exception.getCause());
+    assertInstanceOf(DataAccessException.class, exception.getCause());
+    assertEquals("Database save error", exception.getCause().getMessage());
+
+    reset(logisticsUserRepository);
+
+    IllegalArgumentException mockException = mock(IllegalArgumentException.class);
+    when(mockException.getMessage()).thenReturn("Database save error");
+    when(logisticsUserRepository.save(any(LogisticsUser.class)))
+        .thenThrow(mockException);
+
+    exception = assertThrows(UserCreationException.class,
+        () -> logisticsUserService.createAndSaveUser(userRequestDto),
+        "Expected createAndSaveUser to throw UserCreationException when error saving"
+            + " to the database occurs.");
+
+    assertEquals("An unexpected error occurred while saving the user to the database",
+        exception.getMessage());
+    assertNotNull(exception.getCause());
+    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
+    assertEquals("Database save error", exception.getCause().getMessage());
   }
 
   /**

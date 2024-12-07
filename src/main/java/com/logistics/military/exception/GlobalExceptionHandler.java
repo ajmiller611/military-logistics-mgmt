@@ -109,10 +109,29 @@ public class GlobalExceptionHandler {
    * @return a {@link ResponseEntity} containing the error response with the HTTP status of 400
    */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<ResponseWrapper<Object>> handleArgumentTypeMismatch(
+  public ResponseEntity<ResponseWrapper<String>> handleArgumentTypeMismatch(
       MethodArgumentTypeMismatchException ex) {
     return ResponseEntity.badRequest().body(
         ResponseWrapper.error("Invalid argument data type")
+    );
+  }
+
+  /**
+   * Handles exceptions for {@link UserCreationException} when an error occurs during
+   * a save user to the database call.
+   *
+   * @param ex the {@link UserCreationException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 500
+   */
+  @ExceptionHandler(UserCreationException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleUserCreationException(
+      UserCreationException ex) {
+    String causeType =
+        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Unknown Cause";
+    logger.error("{} occurred during user creation with message: {}",
+        causeType, ex.getMessage());
+    return ResponseEntity.internalServerError().body(
+        ResponseWrapper.error("User creation failed: " + ex.getMessage())
     );
   }
 }

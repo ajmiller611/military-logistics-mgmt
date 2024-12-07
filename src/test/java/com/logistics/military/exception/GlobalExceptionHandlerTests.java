@@ -2,6 +2,7 @@ package com.logistics.military.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -129,11 +131,38 @@ class GlobalExceptionHandlerTests {
   void givenMethodArgumentTypeMismatchExceptionWhenHandleArgumentTypeMismatchThenBadRequest() {
     MethodArgumentTypeMismatchException exception = mock(MethodArgumentTypeMismatchException.class);
 
-    ResponseEntity<ResponseWrapper<Object>> response =
+    ResponseEntity<ResponseWrapper<String>> response =
         globalExceptionHandler.handleArgumentTypeMismatch(exception);
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
     assertEquals("Invalid argument data type", response.getBody().getMessage());
+  }
+
+  /**
+   * Tests the {@code handleUserCreationException} method. Verifies that a
+   * {@link UserCreationException} results in an HTTP 500 (internal server error) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenUserCreationExceptionWhenHandleUserCreationExceptionThenInternalServerError() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      DataAccessException cause = mock(DataAccessException.class);
+      UserCreationException exception =
+          new UserCreationException("User Creation Exception message", cause);
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleUserCreationException(exception);
+
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertThat(response.getBody().getMessage()).contains("User creation failed:");
+
+      assertThat(logCaptor.getErrorLogs())
+          .anyMatch(log ->
+              log.contains("DataAccessException")
+                  && log.contains("occurred during user creation with message:")
+                  && log.contains("User Creation Exception message"));
+    }
   }
 }
