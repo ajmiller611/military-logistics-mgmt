@@ -116,4 +116,15 @@ public class LogisticsUser implements UserDetails {
         + ", authorities=" + authorities
         + ")";
   }
+
+  /**
+   * Checks if the user has the specified role.
+   *
+   * @param role the role to check for
+   * @return true if the user has the specified role, false otherwise
+   */
+  public boolean hasRole(String role) {
+    return getAuthorities().stream()
+        .anyMatch(authority -> authority.getAuthority().equals(role));
+  }
 }
