@@ -1,10 +1,12 @@
 package com.logistics.military.controller;
 
 import com.logistics.military.dto.UserResponseDto;
+import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.response.PaginatedData;
 import com.logistics.military.response.ResponseWrapper;
 import com.logistics.military.service.LogisticsUserService;
+import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
@@ -16,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +39,9 @@ public class LogisticsUserController {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
   private final LogisticsUserService logisticsUserService;
+
+  private static final String POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE =
+      "User id must be greater than zero";
 
   /**
    * Retrieves a paginated list of users.
@@ -109,7 +116,7 @@ public class LogisticsUserController {
     logger.info("Endpoint '/user/{id}' received request with id = {}", id);
     try {
       if (id <= 0) {
-        throw new BadRequestException("User id must be greater than zero");
+        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
       }
       Optional<LogisticsUser> user = logisticsUserService.getUserById(id);
 
@@ -128,7 +135,41 @@ public class LogisticsUserController {
     } catch (BadRequestException e) {
       logger.error("Attempted to get user by id with a non positive number");
       return ResponseEntity.badRequest().body(
-          ResponseWrapper.error("User id must be greater than zero"));
+          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
+    }
+  }
+
+  /**
+   * Updates a user.
+   */
+  @PutMapping("/{id}")
+  public ResponseEntity<ResponseWrapper<UserResponseDto>> updateUser(
+      @PathVariable(name = "id") Long id,
+      @Valid @RequestBody UserUpdateRequestDto updateRequestDto) {
+
+    logger.info("Endpoint '/users/{id}' received PUT request with id = {}", id);
+    try {
+      if (id <= 0) {
+        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
+      }
+      Optional<LogisticsUser> user = logisticsUserService.updateUser(id, updateRequestDto);
+
+      if (user.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
+      }
+
+      UserResponseDto responseDto = new UserResponseDto(
+          user.get().getUserId(),
+          user.get().getUsername(),
+          user.get().getEmail()
+      );
+      return ResponseEntity.ok(
+          ResponseWrapper.success(responseDto, "User updated successfully"));
+    } catch (BadRequestException e) {
+      logger.error("Update user request attempted to get user by id with a non positive number");
+      return ResponseEntity.badRequest().body(
+          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
     }
   }
 }
