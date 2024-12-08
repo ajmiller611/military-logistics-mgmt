@@ -3,6 +3,7 @@ package com.logistics.military.service;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
+import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.exception.UserCreationException;
 import com.logistics.military.model.LogisticsUser;
@@ -30,7 +31,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-
 /**
  * Service responsible for managing and processing user-related operations,
  * including user registration, password encoding, role assignment, and user retrieval.
@@ -49,6 +49,8 @@ public class LogisticsUserService implements UserDetailsService {
   private final RoleRepository roleRepository;
   private final LogisticsUserRepository logisticsUserRepository;
   private final Clock clock;
+
+  private static final String ROLE_NAME_ADMIN = "ADMIN";
 
   /**
    * Registers a new user by validating the input data, encoding the password,
@@ -136,8 +138,7 @@ public class LogisticsUserService implements UserDetailsService {
 
     // Exclude admin users to protect admin user's details.
     List<LogisticsUser> filteredUsers = usersPage.getContent().stream().filter(
-        user -> user.getAuthorities().stream().noneMatch(
-            role -> role.getAuthority().equals("ADMIN")))
+        user -> !user.hasRole(ROLE_NAME_ADMIN))
         .toList();
 
     // Convert the users to response DTOs
@@ -163,13 +164,46 @@ public class LogisticsUserService implements UserDetailsService {
   public Optional<LogisticsUser> getUserById(Long id) {
     Optional<LogisticsUser> user = logisticsUserRepository.findById(id);
 
-    // Return an empty Optional if the id belongs to an admin user
-    if (user.isPresent() && user.get().getAuthorities().stream().anyMatch(
-        role -> role.getAuthority().equals("ADMIN")
-    )) {
+    if (user.isPresent() && user.get().hasRole(ROLE_NAME_ADMIN)) {
       return Optional.empty();
     }
     return user;
+  }
+
+  /**
+   * Updates the details of an existing user based on the provided id and update request.
+   *
+   * @param id the id of the user to be updated
+   * @param requestDto the {@link UserUpdateRequestDto} containing the new data for the user
+   * @return an {@link Optional} containing the updated {@link LogisticsUser} if the update
+   *     is successful, or an empty {@link Optional} if the user does not exist,
+   *     or the user is an admin
+   */
+  public Optional<LogisticsUser> updateUser(Long id, UserUpdateRequestDto requestDto) {
+    Optional<LogisticsUser> userOptional = logisticsUserRepository.findById(id);
+
+    if (userOptional.isPresent()) {
+      LogisticsUser user = userOptional.get();
+
+      if (user.hasRole(ROLE_NAME_ADMIN)) {
+        return Optional.empty();
+      }
+
+      user.setUsername(requestDto.getUsername());
+      user.setEmail(requestDto.getEmail());
+
+      try {
+        LogisticsUser updatedUser = logisticsUserRepository.save(user);
+        return Optional.of(updatedUser);
+      } catch (DataAccessException e) {
+        throw new UserCreationException(
+            "An error occurred while saving the user to the database", e);
+      } catch (Exception e) {
+        throw new UserCreationException(
+            "An unexpected error occurred while saving the user to the database", e);
+      }
+    }
+    return Optional.empty();
   }
 
   /**
