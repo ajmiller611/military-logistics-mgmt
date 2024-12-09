@@ -9,6 +9,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -132,6 +133,71 @@ public class GlobalExceptionHandler {
         causeType, ex.getMessage());
     return ResponseEntity.internalServerError().body(
         ResponseWrapper.error("User creation failed: " + ex.getMessage())
+    );
+  }
+
+  /**
+   * Handles {@link UserNotFoundException} when a user does not exist in the database.
+   *
+   * @param ex the {@link UserNotFoundException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 404
+   */
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleUserNotFoundException(
+      UserNotFoundException ex) {
+    logger.error("UserNotFoundException: {} | Operation: {}", ex.getMessage(), ex.getOperation());
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+        ResponseWrapper.error(ex.getMessage())
+    );
+  }
+
+  /**
+   * Handles {@link UnauthorizedOperationException} when an unauthorized user attempts an operation
+   * on an admin user. The error message must be the exact format as a user not found error message
+   * to prevent inference that id used belongs to an admin.
+   *
+   * @param ex the {@link UnauthorizedOperationException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 404
+   */
+  @ExceptionHandler(UnauthorizedOperationException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleUnauthorizedOperationException(
+      UnauthorizedOperationException ex) {
+    logger.error(ex.getMessage());
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+        ResponseWrapper.error(String.format("User with id %d does not exist", ex.getId()))
+    );
+  }
+
+  /**
+   * Handles {@link UserDeletionException} when an error occurs during a deletion of a user.
+   *
+   * @param ex the {@link UserDeletionException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
+   */
+  @ExceptionHandler(UserDeletionException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleUserDeletionException(
+      UserDeletionException ex) {
+    String causeType =
+        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Unknown Cause";
+    logger.error("{} occurred during user deletion with message: {}",
+        causeType, ex.getMessage());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        ResponseWrapper.error(ex.getMessage())
+    );
+  }
+
+  /**
+   * Handles generic database-related exceptions for a {@link DataAccessException} occurrence.
+   *
+   * @param ex the {@link DataAccessException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 500
+   */
+  @ExceptionHandler(DataAccessException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleDataAccessException(
+      DataAccessException ex) {
+    logger.error("Database error occurred", ex);
+    return ResponseEntity.internalServerError().body(
+        ResponseWrapper.error("An unexpected database error occurred")
     );
   }
 }
