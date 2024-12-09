@@ -2,7 +2,6 @@ package com.logistics.military.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -163,6 +163,132 @@ class GlobalExceptionHandlerTests {
               log.contains("DataAccessException")
                   && log.contains("occurred during user creation with message:")
                   && log.contains("User Creation Exception message"));
+
+      // Unknown cause
+      exception = new UserCreationException("User Creation Exception message", null);
+
+      response = globalExceptionHandler.handleUserCreationException(exception);
+
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertThat(response.getBody().getMessage()).contains("User creation failed:");
+
+      assertThat(logCaptor.getErrorLogs())
+          .anyMatch(log ->
+              log.contains("Unknown Cause")
+                  && log.contains("occurred during user creation with message:")
+                  && log.contains("User Creation Exception message"));
+    }
+  }
+
+  /**
+   * Tests the {@code handleUserNotFoundException} method. Verifies that a
+   * {@link UserNotFoundException} results in an HTTP 404 (not found) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenUserNotFoundExceptionWhenHandleUserNotFoundExceptionThenNotFound() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      UserNotFoundException exception = mock(UserNotFoundException.class);
+      when(exception.getMessage()).thenReturn("User with id 3 does not exist");
+      when(exception.getOperation()).thenReturn("deleteUser");
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleUserNotFoundException(exception);
+
+      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("User with id 3 does not exist", response.getBody().getMessage());
+
+      assertThat(logCaptor.getErrorLogs())
+          .contains("UserNotFoundException: User with id 3 does not exist | Operation: deleteUser");
+    }
+  }
+
+  /**
+   * Tests the {@code handleUnauthorizedOperationException} method. Verifies that a
+   * {@link UnauthorizedOperationException} results in an HTTP 404 (not found) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenUnauthorizedOperationExceptionWhenHandleUnauthorizedOperationExceptionThenNotFound() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      UnauthorizedOperationException exception = mock(UnauthorizedOperationException.class);
+      when(exception.getMessage()).thenReturn("User with id 3 does not exist");
+      when(exception.getId()).thenReturn(3L);
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleUnauthorizedOperationException(exception);
+
+      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("User with id 3 does not exist", response.getBody().getMessage());
+
+      assertThat(logCaptor.getErrorLogs()).contains("User with id 3 does not exist");
+    }
+  }
+
+  /**
+   * Tests the {@code handleUserDeletionException} method. Verifies that a
+   * {@link UserDeletionException} results in an HTTP 404 (not found) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenUserDeletionExceptionWhenHandleUserDeletionExceptionThenConflict() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      DataIntegrityViolationException cause = mock(DataIntegrityViolationException.class);
+      UserDeletionException exception =
+          new UserDeletionException("Entity has constraints", cause);
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleUserDeletionException(exception);
+
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
+
+      assertThat(logCaptor.getErrorLogs())
+          .anyMatch(log ->
+              log.contains("DataIntegrityViolationException")
+                  && log.contains("occurred during user deletion with message:")
+                  && log.contains("Entity has constraints"));
+
+      // Unknown cause
+      exception = new UserDeletionException("Entity has constraints", null);
+
+      response = globalExceptionHandler.handleUserDeletionException(exception);
+
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
+
+      assertThat(logCaptor.getErrorLogs())
+          .anyMatch(log ->
+              log.contains("Unknown Cause")
+                  && log.contains("occurred during user deletion with message:")
+                  && log.contains("Entity has constraints"));
+    }
+  }
+
+  /**
+   * Tests the {@code handleDataAccessException} method. Verifies that a
+   * {@link DataAccessException} results in an HTTP 404 (not found) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenDataAccessExceptionWhenHandleDataAccessExceptionThenInternalServerError() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      DataAccessException exception = mock(DataAccessException.class);
+      when(exception.getMessage()).thenReturn("An unexpected database error occurred");
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleDataAccessException(exception);
+
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("An unexpected database error occurred", response.getBody().getMessage());
+
+      assertThat(logCaptor.getErrorLogs()).contains("Database error occurred");
     }
   }
 }
