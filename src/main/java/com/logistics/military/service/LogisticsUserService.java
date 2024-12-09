@@ -4,8 +4,11 @@ import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
+import com.logistics.military.exception.UnauthorizedOperationException;
 import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.exception.UserCreationException;
+import com.logistics.military.exception.UserDeletionException;
+import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -204,6 +208,36 @@ public class LogisticsUserService implements UserDetailsService {
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * Deletes an existing user based on the provided id.
+   *
+   * <p>The method throws a {@link UserNotFoundException} if the id provided is an admin user.
+   * Other exceptions are thrown for a user not existing and database-related exceptions for
+   * the global exception handler to process.</p>
+   *
+   * @param id the id of the user to be deleted
+   * @throws UserNotFoundException if the provided id does not exist in the database
+   * @throws UnauthorizedOperationException if the user is an admin
+   * @throws UserDeletionException to wrap a {@link DataIntegrityViolationException} if the entity
+   *     has foreign key constraints and there are no appropriate cascading rules
+   */
+  public void deleteUser(Long id) {
+    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
+        () -> new UserNotFoundException(
+            String.format("User with id %d does not exist", id), "deleteUser"));
+
+    if (user.hasRole(ROLE_NAME_ADMIN)) {
+      throw new UnauthorizedOperationException(
+          String.format("Unauthorized user cannot delete admin user with id %d", id), id);
+    }
+
+    try {
+      logisticsUserRepository.deleteById(id);
+    } catch (DataIntegrityViolationException e) {
+      throw new UserDeletionException("The entity has foreign key constraints", e);
+    }
   }
 
   /**

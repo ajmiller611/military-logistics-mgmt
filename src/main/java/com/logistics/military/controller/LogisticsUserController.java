@@ -16,6 +16,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -168,6 +169,29 @@ public class LogisticsUserController {
           ResponseWrapper.success(responseDto, "User updated successfully"));
     } catch (BadRequestException e) {
       logger.error("Update user request attempted to get user by id with a non positive number");
+      return ResponseEntity.badRequest().body(
+          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
+    }
+  }
+
+  /**
+   * Deletes a user.
+   */
+  @DeleteMapping("/{id}")
+  public ResponseEntity<ResponseWrapper<UserResponseDto>> deleteUser(
+      @PathVariable(name = "id") Long id) {
+
+    logger.info("Endpoint '/users/{id}' received DELETE request with id = {}", id);
+    try {
+      if (id <= 0) {
+        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
+      }
+
+      logisticsUserService.deleteUser(id);
+      return ResponseEntity.ok(
+          ResponseWrapper.success(null, "User deleted successfully"));
+    } catch (BadRequestException e) {
+      logger.error("Delete user request attempted to get user by id with a non positive number");
       return ResponseEntity.badRequest().body(
           ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
     }
