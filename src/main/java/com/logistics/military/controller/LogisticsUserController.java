@@ -7,6 +7,7 @@ import com.logistics.military.response.PaginatedData;
 import com.logistics.military.response.ResponseWrapper;
 import com.logistics.military.service.LogisticsUserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
@@ -16,6 +17,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,12 +38,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
+@Validated
 public class LogisticsUserController {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
   private final LogisticsUserService logisticsUserService;
 
-  private static final String POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE =
+  private static final String NONPOSITIVE_USER_ID_ERROR_MESSAGE =
       "User id must be greater than zero";
 
   /**
@@ -117,7 +120,7 @@ public class LogisticsUserController {
     logger.info("Endpoint '/user/{id}' received request with id = {}", id);
     try {
       if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
+        throw new BadRequestException(NONPOSITIVE_USER_ID_ERROR_MESSAGE);
       }
       Optional<LogisticsUser> user = logisticsUserService.getUserById(id);
 
@@ -136,7 +139,7 @@ public class LogisticsUserController {
     } catch (BadRequestException e) {
       logger.error("Attempted to get user by id with a non positive number");
       return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
+          ResponseWrapper.error(NONPOSITIVE_USER_ID_ERROR_MESSAGE));
     }
   }
 
@@ -151,7 +154,7 @@ public class LogisticsUserController {
     logger.info("Endpoint '/users/{id}' received PUT request with id = {}", id);
     try {
       if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
+        throw new BadRequestException(NONPOSITIVE_USER_ID_ERROR_MESSAGE);
       }
       Optional<LogisticsUser> user = logisticsUserService.updateUser(id, updateRequestDto);
 
@@ -170,7 +173,7 @@ public class LogisticsUserController {
     } catch (BadRequestException e) {
       logger.error("Update user request attempted to get user by id with a non positive number");
       return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
+          ResponseWrapper.error(NONPOSITIVE_USER_ID_ERROR_MESSAGE));
     }
   }
 
@@ -179,21 +182,11 @@ public class LogisticsUserController {
    */
   @DeleteMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> deleteUser(
-      @PathVariable(name = "id") Long id) {
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id) {
 
     logger.info("Endpoint '/users/{id}' received DELETE request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
-      }
-
-      logisticsUserService.deleteUser(id);
-      return ResponseEntity.ok(
-          ResponseWrapper.success(null, "User deleted successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Delete user request attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
-    }
+    logisticsUserService.deleteUser(id);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(null, "User deleted successfully"));
   }
 }
