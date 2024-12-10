@@ -105,19 +105,31 @@ class LogisticsUserControllerDeleteTests {
   @Test
   @WithMockUser
   void givenInvalidUserIdWhenDeleteUserThenReturnBadRequest() throws Exception {
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(delete("/users/-1")
-              .with(csrf()))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.status").value("error"))
-          .andExpect(jsonPath("$.message").value("User id must be greater than zero"));
+    Long invalidUserId = -1L;
+    mockMvc.perform(delete("/users/-1")
+            .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value("error"))
+        .andExpect(jsonPath("$.message").value("Validation failed"))
+        .andExpect(jsonPath("$.data.[0].field").value("id"))
+        .andExpect(jsonPath("$.data.[0].message")
+            .value("User id must be greater than zero"))
+        .andExpect(jsonPath("$.data.[0].invalidValue").value(invalidUserId));
 
-      Long invalidUserId = -1L;
-      verify(logisticsUserService, never()).deleteUser(invalidUserId);
+    verify(logisticsUserService, never()).deleteUser(invalidUserId);
 
-      assertThat(logCaptor.getErrorLogs())
-          .contains("Delete user request attempted to get user by id with a non positive number");
-    }
+    invalidUserId = 0L;
+    mockMvc.perform(delete("/users/0")
+            .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value("error"))
+        .andExpect(jsonPath("$.message").value("Validation failed"))
+        .andExpect(jsonPath("$.data.[0].field").value("id"))
+        .andExpect(jsonPath("$.data.[0].message")
+            .value("User id must be greater than zero"))
+        .andExpect(jsonPath("$.data.[0].invalidValue").value(invalidUserId));
+
+    verify(logisticsUserService, never()).deleteUser(invalidUserId);
   }
 
   /**
