@@ -73,6 +73,10 @@ dependencyManagement {
 	}
 }
 
+tasks.withType(JavaCompile) {
+	options.compilerArgs << '-parameters' // Preserve parameter names in the compiled class files
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	finalizedBy jacocoTestReport
