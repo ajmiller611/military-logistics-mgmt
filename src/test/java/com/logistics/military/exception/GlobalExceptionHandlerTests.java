@@ -23,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -273,6 +274,50 @@ class GlobalExceptionHandlerTests {
               log.contains("Unknown Cause")
                   && log.contains("occurred during user deletion with message:")
                   && log.contains("Entity has constraints"));
+    }
+  }
+
+  /**
+   * Tests the {@code handleDataIntegrityViolationException} method. Verifies that a
+   * {@link DataIntegrityViolationException} results in an HTTP 409 (conflict) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenDataIntegrityViolationExceptionWhenHandleDataIntegrityViolationExceptionThenConflict() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      DataIntegrityViolationException exception = mock(DataIntegrityViolationException.class);
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleDataIntegrityViolationException(exception);
+
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("A conflict occurred due to database constraints",
+          response.getBody().getMessage());
+
+      assertThat(logCaptor.getErrorLogs()).contains("Data integrity violation occurred");
+    }
+  }
+
+  /**
+   * Tests the {@code handleOptimisticLockingFailureException} method. Verifies that a
+   * {@link OptimisticLockingFailureException} results in an HTTP 409 (conflict) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenOptimisticLockingFailureWhenHandleOptimisticLockingFailureExceptionThenConflict() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      OptimisticLockingFailureException exception = mock(OptimisticLockingFailureException.class);
+
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleOptimisticLockingFailureException(exception);
+
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("Concurrency conflict: another user updated the record",
+          response.getBody().getMessage());
+
+      assertThat(logCaptor.getErrorLogs()).contains("Optimistic locking conflict");
     }
   }
 
