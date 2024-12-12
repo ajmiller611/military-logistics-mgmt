@@ -148,33 +148,13 @@ public class LogisticsUserController {
    */
   @PutMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> updateUser(
-      @PathVariable(name = "id") Long id,
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id,
       @Valid @RequestBody UserUpdateRequestDto updateRequestDto) {
 
     logger.info("Endpoint '/users/{id}' received PUT request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(NONPOSITIVE_USER_ID_ERROR_MESSAGE);
-      }
-      Optional<LogisticsUser> user = logisticsUserService.updateUser(id, updateRequestDto);
-
-      if (user.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
-      }
-
-      UserResponseDto responseDto = new UserResponseDto(
-          user.get().getUserId(),
-          user.get().getUsername(),
-          user.get().getEmail()
-      );
-      return ResponseEntity.ok(
-          ResponseWrapper.success(responseDto, "User updated successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Update user request attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(NONPOSITIVE_USER_ID_ERROR_MESSAGE));
-    }
+    UserResponseDto responseDto = logisticsUserService.updateUser(id, updateRequestDto);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(responseDto, "User updated successfully"));
   }
 
   /**
