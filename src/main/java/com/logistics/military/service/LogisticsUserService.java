@@ -175,39 +175,27 @@ public class LogisticsUserService implements UserDetailsService {
   }
 
   /**
-   * Updates the details of an existing user based on the provided id and update request.
+   * Updates the details of an existing user based on the provided ID and update request.
    *
-   * @param id the id of the user to be updated
+   * @param id the ID of the user to be updated
    * @param requestDto the {@link UserUpdateRequestDto} containing the new data for the user
-   * @return an {@link Optional} containing the updated {@link LogisticsUser} if the update
-   *     is successful, or an empty {@link Optional} if the user does not exist,
-   *     or the user is an admin
+   * @return a {@link UserResponseDto} containing the updated user's details
    */
-  public Optional<LogisticsUser> updateUser(Long id, UserUpdateRequestDto requestDto) {
-    Optional<LogisticsUser> userOptional = logisticsUserRepository.findById(id);
+  public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
+    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
+        () -> new UserNotFoundException(
+            String.format("User with id %d does not exist", id), "updateUser"));
 
-    if (userOptional.isPresent()) {
-      LogisticsUser user = userOptional.get();
-
-      if (user.hasRole(ROLE_NAME_ADMIN)) {
-        return Optional.empty();
-      }
-
-      user.setUsername(requestDto.getUsername());
-      user.setEmail(requestDto.getEmail());
-
-      try {
-        LogisticsUser updatedUser = logisticsUserRepository.save(user);
-        return Optional.of(updatedUser);
-      } catch (DataAccessException e) {
-        throw new UserCreationException(
-            "An error occurred while saving the user to the database", e);
-      } catch (Exception e) {
-        throw new UserCreationException(
-            "An unexpected error occurred while saving the user to the database", e);
-      }
+    if (user.hasRole(ROLE_NAME_ADMIN)) {
+      throw new UnauthorizedOperationException(
+          String.format("Unauthorized user cannot update admin user with id %d", id), id);
     }
-    return Optional.empty();
+
+    user.setUsername(requestDto.getUsername());
+    user.setEmail(requestDto.getEmail());
+    user = logisticsUserRepository.save(user);
+
+    return new UserResponseDto(user.getUserId(), user.getUsername(), user.getEmail());
   }
 
   /**
