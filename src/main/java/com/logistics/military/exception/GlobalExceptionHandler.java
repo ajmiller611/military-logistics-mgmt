@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -194,7 +196,37 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * Handles generic database-related exceptions for a {@link DataAccessException} occurrence.
+   * Handles {@link DataIntegrityViolationException} when database constraints are violated.
+   *
+   * @param ex the {@link DataIntegrityViolationException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
+   */
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleDataIntegrityViolationException(
+      DataIntegrityViolationException ex) {
+    logger.error("Data integrity violation occurred", ex);
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        ResponseWrapper.error("A conflict occurred due to database constraints")
+    );
+  }
+
+  /**
+   * Handles {@link OptimisticLockingFailureException} when an optimistic locking conflict occurs.
+   *
+   * @param ex the {@link OptimisticLockingFailureException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleOptimisticLockingFailureException(
+      OptimisticLockingFailureException ex) {
+    logger.error("Optimistic locking conflict", ex);
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        ResponseWrapper.error("Concurrency conflict: another user updated the record")
+    );
+  }
+
+  /**
+   * Handles the generic database-related {@link DataAccessException} with a generic error response.
    *
    * @param ex the {@link DataAccessException} containing the error details
    * @return a {@link ResponseEntity} containing the error response with the HTTP status of 500
