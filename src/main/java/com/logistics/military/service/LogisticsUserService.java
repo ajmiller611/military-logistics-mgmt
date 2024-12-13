@@ -165,13 +165,17 @@ public class LogisticsUserService implements UserDetailsService {
    * @return an {@link Optional} containing the {@link LogisticsUser} if a user with the specified
    *         ID exists and does not have the "ADMIN" role, or an empty {@link Optional} otherwise.
    */
-  public Optional<LogisticsUser> getUserById(Long id) {
-    Optional<LogisticsUser> user = logisticsUserRepository.findById(id);
+  public UserResponseDto getUserById(Long id) {
+    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
+        () -> new UserNotFoundException(
+            String.format("User with id %d does not exist", id), "getUserById"));
 
-    if (user.isPresent() && user.get().hasRole(ROLE_NAME_ADMIN)) {
-      return Optional.empty();
+    if (user.hasRole(ROLE_NAME_ADMIN)) {
+      throw new UnauthorizedOperationException(
+          String.format("Unauthorized user cannot update admin user with id %d", id), id);
     }
-    return user;
+
+    return new UserResponseDto(user.getUserId(), user.getUsername(), user.getEmail());
   }
 
   /**
