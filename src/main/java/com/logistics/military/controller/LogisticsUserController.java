@@ -115,32 +115,12 @@ public class LogisticsUserController {
    */
   @GetMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> getUserById(
-      @PathVariable(name = "id") Long id) {
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id) {
 
-    logger.info("Endpoint '/user/{id}' received request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(NONPOSITIVE_USER_ID_ERROR_MESSAGE);
-      }
-      Optional<LogisticsUser> user = logisticsUserService.getUserById(id);
-
-      if (user.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
-      }
-
-      UserResponseDto responseDto = new UserResponseDto(
-          user.get().getUserId(),
-          user.get().getUsername(),
-          user.get().getEmail()
-      );
-      return ResponseEntity.ok(
-          ResponseWrapper.success(responseDto, "User retrieved successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(NONPOSITIVE_USER_ID_ERROR_MESSAGE));
-    }
+    logger.info("Endpoint '/user/{id}' received GET request with id = {}", id);
+    UserResponseDto responseDto = logisticsUserService.getUserById(id);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(responseDto, "User retrieved successfully"));
   }
 
   /**
