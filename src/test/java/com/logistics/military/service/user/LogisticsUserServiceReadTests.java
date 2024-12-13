@@ -3,16 +3,19 @@ package com.logistics.military.service.user;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.logistics.military.dto.UserResponseDto;
+import com.logistics.military.exception.UnauthorizedOperationException;
+import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
-import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.service.LogisticsUserService;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -32,7 +35,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
@@ -51,11 +53,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class LogisticsUserServiceReadTests {
 
-  @InjectMocks
-  private LogisticsUserService logisticsUserService;
+  @InjectMocks private LogisticsUserService logisticsUserService;
   @Mock private LogisticsUserRepository logisticsUserRepository;
-  @Mock private RoleRepository roleRepository;
-  @Mock private PasswordEncoder passwordEncoder;
   @Mock private Clock clock;
 
   LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
@@ -65,6 +64,7 @@ class LogisticsUserServiceReadTests {
           ZoneId.systemDefault());
 
   Role userRole;
+  Long userId;
   LogisticsUser user;
   Pageable pageable;
   Page<LogisticsUser> pagedUsers;
@@ -78,9 +78,10 @@ class LogisticsUserServiceReadTests {
    */
   @BeforeEach
   void setUp() {
+    userId = 2L;
     userRole = new Role("USER");
     user = new LogisticsUser(
-        2L,
+        userId,
         "testUser",
         "password",
         "test@example.com",
@@ -345,58 +346,52 @@ class LogisticsUserServiceReadTests {
     return new PageImpl<>(pageContent, PageRequest.of(page, pageSize), pageContent.size());
   }
 
-  /**
-   * Verifies that a valid id returns the user's data.
-   */
+  /** Verifies that a valid id returns the user's data. */
   @Test
   void givenValidIdWhenGetUserByIdThenReturnUser() {
     Optional<LogisticsUser> optionalLogisticsUser = Optional.of(user);
-    when(logisticsUserRepository.findById(2L)).thenReturn(optionalLogisticsUser);
+    when(logisticsUserRepository.findById(userId)).thenReturn(optionalLogisticsUser);
 
-    Optional<LogisticsUser> result = logisticsUserService.getUserById(2L);
+    UserResponseDto result = logisticsUserService.getUserById(userId);
 
-    verify(logisticsUserRepository, times(1)).findById(2L);
+    verify(logisticsUserRepository, times(1)).findById(userId);
     assertNotNull(result);
-    assertTrue(result.isPresent());
-    assertEquals(user.getUserId(), result.get().getUserId());
-    assertEquals(user.getUsername(), result.get().getUsername());
-    assertEquals(user.getEmail(), result.get().getEmail());
+    assertEquals(user.getUserId(), result.getUserId());
+    assertEquals(user.getUsername(), result.getUsername());
+    assertEquals(user.getEmail(), result.getEmail());
   }
 
-  /**
-   * Verifies that an id of a user with an 'ADMIN' role returns an empty Optional instance.
-   */
+  /** Verifies that when an id doesn't exist throws {@link UserNotFoundException}. */
   @Test
-  void givenAdminIdTypeWhenGetUserByIdThenReturnEmptyOptional() {
-    Role adminRole = new Role("ADMIN");
-    LogisticsUser adminUser = new LogisticsUser(
-        1L,
-        "admin",
-        "password",
-        "admin@example.com",
-        fixedTimestamp,
-        Set.of(adminRole, userRole)
-    );
-    when(logisticsUserRepository.findById(1L)).thenReturn(Optional.of(adminUser));
+  void givenNonExistentUserIdWhenGetUserByIdThenThrowsUserNotFoundException() {
+    when(logisticsUserRepository.findById(userId)).thenReturn(Optional.empty());
 
-    Optional<LogisticsUser> result = logisticsUserService.getUserById(1L);
+    UserNotFoundException exception = assertThrows(UserNotFoundException.class,
+        () -> logisticsUserService.getUserById(userId));
+
+    verify(logisticsUserRepository, times(1)).findById(userId);
+    assertNotNull(exception);
+    assertEquals(String.format("User with id %d does not exist", userId), exception.getMessage());
+    assertEquals("getUserById", exception.getOperation());
+  }
+
+  /** Verifies that query for an admin user throws {@link UnauthorizedOperationException}. */
+  @Test
+  void givenAdminIdTypeWhenGetUserByIdThenThrowsUnauthorizedOperationException() {
+    Long adminUserId = 1L;
+    LogisticsUser adminUser = mock(LogisticsUser.class);
+    when(adminUser.hasRole("ADMIN")).thenReturn(true);
+
+    when(logisticsUserRepository.findById(adminUserId)).thenReturn(Optional.of(adminUser));
+
+    UnauthorizedOperationException exception = assertThrows(UnauthorizedOperationException.class,
+        () -> logisticsUserService.getUserById(adminUserId));
 
     verify(logisticsUserRepository, times(1)).findById(1L);
-    assertNotNull(result);
-    assertTrue(result.isEmpty());
-  }
-
-  /**
-   * Verifies that when an id doesn't exist then returns an empty optional.
-   */
-  @Test
-  void givenNonExistentUserIdWhenGetUserByIdThenReturnEmptyOptional() {
-    when(logisticsUserRepository.findById(10L)).thenReturn(Optional.empty());
-
-    Optional<LogisticsUser> result = logisticsUserService.getUserById(10L);
-
-    verify(logisticsUserRepository, times(1)).findById(10L);
-    assertNotNull(result);
-    assertTrue(result.isEmpty());
+    assertNotNull(exception);
+    assertEquals(
+        String.format("Unauthorized user cannot update admin user with id %d", adminUserId),
+        exception.getMessage());
+    assertEquals(adminUserId, exception.getId());
   }
 }
