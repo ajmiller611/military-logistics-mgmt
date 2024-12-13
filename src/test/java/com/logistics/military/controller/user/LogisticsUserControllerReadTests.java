@@ -2,7 +2,6 @@ package com.logistics.military.controller.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,7 +27,6 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>This test class verifies the functionality of the {@code LogisticsUserController}'s endpoints,
  * focusing on ensuring correct behavior of security configurations, request mappings,
- * response handling, and role-based access control.
+ * response handling, role-based access control, and detailed validation of request parameters.
  * </p>
  *
  * <h2>Key Features Tested</h2>
@@ -64,14 +62,18 @@ import org.springframework.test.web.servlet.MockMvc;
  *     (e.g., "USER", "ADMIN") can access specific endpoints, while others are denied.
  *   </li>
  *   <li>
- *     <strong>Parameter Handling:</strong> Validates that default and custom parameters for
- *     paginated requests work as expected, and that invalid parameters result in proper
- *     error responses.
+ *     <strong>Parameter Validation:</strong> Confirms validation of path variables and request
+ *     parameters, ensuring that invalid values or types (e.g., negative IDs or non-numeric IDs)
+ *     are properly handled with meaningful error responses.
+ *   </li>
+ *   <li>
+ *     <strong>Logging:</strong> Verifies that significant events, such as requests to fetch user
+ *     details, are logged appropriately for debugging and auditing purposes.
  *   </li>
  *   <li>
  *     <strong>Exception Handling:</strong> Confirms that application-level exceptions (e.g.,
- *     {@link DataAccessException} and {@link RuntimeException}) are correctly handled and logged,
- *     returning meaningful error responses to the client.
+ *     {@link IllegalArgumentException}) are correctly handled and logged, returning meaningful
+ *     error responses to the client.
  *   </li>
  *   <li>
  *     <strong>Routing Validation:</strong> Verifies correct URI mappings for the "/users" endpoint
@@ -79,11 +81,11 @@ import org.springframework.test.web.servlet.MockMvc;
  *   </li>
  *   <li>
  *     <strong>Response Structure:</strong> Tests the consistency of the response payload, including
- *     status, message, and data fields, aligning with the application's standardized
- *     response model.
+ *     status, message, and data fields.
  *   </li>
  * </ul>
  */
+
 @WebMvcTest(LogisticsUserController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
@@ -106,6 +108,7 @@ class LogisticsUserControllerReadTests {
 
   Long testUserId;
   LogisticsUser user;
+  UserResponseDto userResponseDto;
 
   /**
    * Sets up a mock response for the 'getUsers' method with default parameters (page = 0, size = 10)
@@ -129,6 +132,8 @@ class LogisticsUserControllerReadTests {
         Set.of(userRole)
     );
     testUserId = 2L;
+
+    userResponseDto = new UserResponseDto(user.getUserId(), user.getUsername(), user.getEmail());
   }
 
   /**
@@ -369,13 +374,11 @@ class LogisticsUserControllerReadTests {
     return new PageImpl<>(users, PageRequest.of(page, size), users.size());
   }
 
-  /**
-   * Verifies a valid user id responds successfully with the user data of that id.
-   */
+  /** Verifies a valid user id responds ok (200) with the user data of that id. */
   @Test
   @WithMockUser()
-  void givenValidIdWhenGetUserByIdThenSuccessAndExpectedData() throws Exception {
-    when(logisticsUserService.getUserById(testUserId)).thenReturn(Optional.of(user));
+  void givenValidIdWhenGetUserByIdThenRespondsSuccessAndExpectedData() throws Exception {
+    when(logisticsUserService.getUserById(testUserId)).thenReturn(userResponseDto);
 
     mockMvc.perform(get("/users/2"))
         .andExpect(status().isOk())
@@ -388,12 +391,26 @@ class LogisticsUserControllerReadTests {
     verify(logisticsUserService, times(1)).getUserById(testUserId);
   }
 
+  /** Verifies that a valid user's get request is logged properly. */
+  @Test
+  @WithMockUser
+  void givenValidGetRequestWhenGetUserByIdThenLogsRequestProperly() throws Exception {
+    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
+      mockMvc.perform(get("/users/2"))
+          .andExpect(status().isOk());
+
+      assertThat(logCaptor.getInfoLogs())
+          .contains("Endpoint '/user/{id}' received GET request with id = 2");
+    }
+  }
+
   /**
-   * Verifies an invalid parameter type responds with a bad request error.
+   * Verifies an invalid parameter type responds with a bad request (400).
+   * This test case verifies that validation of path variable's parameter types are integrated.
    */
   @Test
   @WithMockUser()
-  void givenInvalidParamsTypeWhenGetUserByIdThenBadRequest() throws Exception {
+  void givenInvalidParamsTypeWhenGetUserByIdThenRespondsBadRequest() throws Exception {
     mockMvc.perform(get("/users/string"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
@@ -401,34 +418,15 @@ class LogisticsUserControllerReadTests {
   }
 
   /**
-   * Verifies an invalid user id responds with a bad request error.
+   *  Verifies an invalid user id responds with a bad request (400).
+   *  This test case verifies that validation annotations are integrated.
    */
   @Test
   @WithMockUser()
-  void givenInvalidUserIdWhenGetUserByIdThenBadRequestException() throws Exception {
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(get("/users/0"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.status").value("error"))
-          .andExpect(jsonPath("$.message").value("User id must be greater than zero"));
-
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("Attempted to get user by id with a non positive number"));
-    }
-  }
-
-  /**
-   * Verifies a user id that does not exist responds with a not found error.
-   */
-  @Test
-  @WithMockUser()
-  void givenNonExistingUserIdWhenGetUserByIdThenNotFound() throws Exception {
-    when(logisticsUserService.getUserById(any(Long.class))).thenReturn(Optional.empty());
-
-    mockMvc.perform(get("/users/5"))
-        .andExpect(status().isNotFound())
+  void givenInvalidUserIdWhenGetUserByIdThenRespondsBadRequest() throws Exception {
+    mockMvc.perform(get("/users/0"))
+        .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("User with id 5 does not exist"));
+        .andExpect(jsonPath("$.message").value("Validation failed"));
   }
 }
