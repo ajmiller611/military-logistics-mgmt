@@ -62,6 +62,7 @@ jobs:
         DB_TEST_URL: ${{ secrets.DB_TEST_URL }}
         DB_TEST_USERNAME: ${{ secrets.DB_TEST_USERNAME }}
         DB_TEST_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
+        SPRING_PROFILES_ACTIVE: test
 
     # Run the linter
     - name: Run Checkstyle
