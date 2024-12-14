@@ -48,11 +48,8 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Debug Environment Variables
-      run: |
-        echo "DB_TEST_URL: ${{ secrets.DB_TEST_URL }}"
-        echo "DB_TEST_USERNAME: ${{ secrets.DB_TEST_USERNAME }}"
-        echo "DB_TEST_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}"
+    - name: Print Environment Variables
+      run: printenv
 
       # Build and test the application
     - name: Build and Test
