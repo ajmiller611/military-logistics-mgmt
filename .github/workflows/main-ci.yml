@@ -48,12 +48,9 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Print Environment Variables
-      run: printenv
-
       # Build and test the application
     - name: Build and Test
-      run: ./gradlew build test
+      run: ./gradlew build test --info
       env:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
