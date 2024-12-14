@@ -56,6 +56,9 @@ jobs:
         SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        DB_TEST_URL: ${{ secrets.DB_TEST_URL }}
+        DB_TEST_USERNAME: ${{ secrets.DB_TEST_USERNAME }}
+        DB_TEST_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
 
     # Run the linter
     - name: Run Checkstyle
