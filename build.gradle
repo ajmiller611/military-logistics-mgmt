@@ -1,13 +1,17 @@
 plugins {
-	id 'java'
-	id 'checkstyle'
-	id 'jacoco'
-	id 'org.springframework.boot' version '3.3.5'
-	id 'io.spring.dependency-management' version '1.1.6'
-	id 'org.sonarqube' version '5.1.0.4882'
+	id 'java' // Applies the Java plugin for building Java applications.
+	id 'org.springframework.boot' version "${springBootVersion}" // Spring Boot plugin for application setup and deployment.
+	id 'io.spring.dependency-management' version "${springDependencyManagementVersion}" // Handles Spring's dependency versions via BOM.
+	id 'jvm-test-suite' // Enables separation of unit and integration tests into test suites.
+	id 'jacoco' // Generates code coverage reports for tests.
+	id "jacoco-report-aggregation" // Aggregates coverage reports across multiple test suites.
+	id "test-report-aggregation" // Aggregates test result reports across suites.
+	id 'checkstyle' // Enforces code style with Checkstyle.
+	id 'org.sonarqube' version "${sonarqubeVersion}" // Integrates SonarQube for static code analysis.
+	id 'idea' // Configures IntelliJ IDEA project settings.
 }
 
-group = 'com.example'
+group = 'com.logistics'
 version = '0.0.1-SNAPSHOT'
 
 java {
@@ -16,18 +20,82 @@ java {
 	}
 }
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
-
 repositories {
 	mavenCentral()
 }
 
-ext {
-	set('springCloudVersion', "2023.0.3")
+// Testing suite must be defined before the below configuration block to
+// avoid naming conflicts (e.g. integrationTestImplementation) since the
+// integrationTest defines sources.
+testing {
+	suites {
+		// Applies common configurations to all test suites.
+		configureEach {
+			useJUnitJupiter()
+			dependencies {
+				implementation 'org.springframework.boot:spring-boot-starter-test'
+				implementation 'org.springframework.security:spring-security-test'
+				implementation "io.github.hakky54:logcaptor:${logcaptorVersion}"
+				runtimeOnly 'org.junit.platform:junit-platform-launcher'
+			}
+		}
+
+		// Unit test suite (default `test` task).
+		test {
+			dependencies {
+				implementation 'com.h2database:h2' // H2 in-memory database for lightweight unit testing.
+			}
+
+			targets {
+				configureEach {
+					testTask.configure {
+						// Generates HTML reports for unit tests.
+						reports {
+							html.setRequired(true)
+							html.outputLocation = layout.buildDirectory.dir("reports/tests/unitTest")
+						}
+					}
+				}
+			}
+
+		}
+
+		// Integration test suite.
+		integrationTest(JvmTestSuite) {
+			testType = TestSuiteType.INTEGRATION_TEST
+
+			dependencies {
+				implementation 'org.postgresql:postgresql' // PostgreSQL database for integration testing.
+			}
+
+
+			sources {
+				// Ensures integration tests can access application classes.
+				compileClasspath += sourceSets.main.output
+
+				// Ensures access to runtime classes/resources.
+				runtimeClasspath += sourceSets.main.output
+			}
+
+			targets {
+				configureEach {
+					testTask.configure {
+						mustRunAfter(test)
+					}
+				}
+			}
+		}
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor // Allows annotation processing tools like Lombok.
+	}
+
+	// Shares test and runtime libraries between unit and integration tests.
+	integrationTestImplementation.extendsFrom testImplementation
+	integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 dependencies {
@@ -40,99 +108,115 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
 
-	// dotenv library
-	implementation 'io.github.cdimascio:dotenv-java:3.0.2'
+	// Libraries for configuration and security.
+	implementation "io.github.cdimascio:dotenv-java:${dotenvJavaVersion}" // .env file support.
+	implementation "io.jsonwebtoken:jjwt:${jjwtVersion}" // JWT library for token-based authentication.
 
-	// JSON Web Token library
-	implementation 'io.jsonwebtoken:jjwt:0.9.1'
-
-	// Compile-time only dependencies
-	compileOnly 'org.projectlombok:lombok'
+	// Compile-time tools
+	compileOnly 'org.projectlombok:lombok' // Reduces boilerplate with Lombok annotations.
+	annotationProcessor 'org.projectlombok:lombok'
 
 	// Development-only dependencies
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 	// Runtime dependencies
-	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'org.postgresql:postgresql:42.7.2'
+	runtimeOnly "org.postgresql:postgresql:${postgresqlVersion}" // PostgreSQL JDBC driver.
 
-	// Annotation processors
-	annotationProcessor 'org.projectlombok:lombok'
-
-	// Test dependencies
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testImplementation 'org.postgresql:postgresql:42.7.2'
-	testImplementation 'io.github.hakky54:logcaptor:2.9.3'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 dependencyManagement {
 	imports {
-		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudBomVersion}"
 	}
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-	finalizedBy jacocoTestReport
+tasks.testCodeCoverageReport {
+	// Allow CI workflow to bypass dependency so tests are not rerun
+	if (!project.hasProperty('ci')) {
+		mustRunAfter(testing.suites.test, testing.suites.integrationTest)
+	}
+	// Aggregates code coverage reports from unit and integration tests.
+	executionData.from(
+			configurations.aggregateCodeCoverageReportResults.incoming.artifactView {
+				lenient = true
+				withVariantReselection()
+				attributes {
+					attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, "verification"))
+					attribute(TestSuiteType.TEST_SUITE_TYPE_ATTRIBUTE, objects.named(TestSuiteType, "integration-test"))
+					attribute(VerificationType.VERIFICATION_TYPE_ATTRIBUTE, objects.named(VerificationType, "jacoco-results"))
+					attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.BINARY_DATA_TYPE)
+				}
+			}.files
+	)
+}
+
+tasks.testAggregateTestReport {
+	// Allow CI workflow to bypass dependency so tests are not rerun
+	if (!project.hasProperty('ci')) {
+		mustRunAfter(testing.suites.test, testing.suites.integrationTest)
+	}
+	// Aggregates test results reports from unit and integration tests.
+	testResults.from(
+			configurations.aggregateTestReportResults.incoming.artifactView {
+				lenient = true
+				withVariantReselection()
+				attributes {
+					attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, "verification"))
+					attribute(TestSuiteType.TEST_SUITE_TYPE_ATTRIBUTE, objects.named(TestSuiteType, "integration-test"))
+					attribute(VerificationType.VERIFICATION_TYPE_ATTRIBUTE, objects.named(VerificationType, "test-results"))
+				}
+			}.files
+	)
+
+	// Specify output directory for aggregated test reports to improve organization.
+	destinationDirectory.set(file(layout.buildDirectory.dir("reports/tests/aggregatedTest")))
+}
+
+tasks.check {
+	dependsOn(tasks.testAggregateTestReport)
+	dependsOn(tasks.testCodeCoverageReport)
+	dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 tasks.withType(Checkstyle).configureEach {
-	dependsOn test // Ensure Checkstyle runs after tests
 	reports {
 		xml.setRequired(false)
 		html.setRequired(true)
 	}
 }
 
-checkstyle {
-	toolVersion = '10.20.0'
-	configFile = file('config/checkstyle/google_checks.xml')
-}
-
-sonarqube {
-	properties {
-		property "sonar.projectKey", "ajmiller611_military-logistics-mgmt"
-		property "sonar.organization", "ajmiller611"
-		property "sonar.host.url", "https://sonarcloud.io"
-		property "sonar.token", System.getenv("SONAR_TOKEN")
+// Configure IntelliJ IDEA to mark integration test directory as a test source
+idea {
+	module {
+		testSources.from(file("src/integrationTest/java"))
+		testResources.from(file("src/integrationTest/resources"))
 	}
 }
 
 jacoco {
-	toolVersion = "0.8.12"
-}
-
-jacocoTestReport {
-	dependsOn test // Ensure tests run before generating the report
-	reports {
-		xml.required = true
-		html.required = true
-		csv.required = false
-		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
-		xml.outputLocation = layout.buildDirectory.file("reports/jacoco/report.xml")
-	}
+	toolVersion = "${jacocoVersion}"
 }
 
 jacocoTestCoverageVerification {
 	violationRules {
 		rule {
 			limit {
-				minimum = 0.5
+				minimum = 0.9 // Require 90% coverage
 			}
 		}
+	}
+}
 
-		rule {
-			enabled = false
-			element = 'CLASS'
-			includes = ['org.gradle.*']
+checkstyle {
+	toolVersion = "${checkstyleVersion}"
+	configFile = file('config/checkstyle/google_checks.xml')
+}
 
-			limit {
-				counter = 'LINE'
-				value = 'TOTALCOUNT'
-				maximum = 0.3
-			}
-		}
+sonarqube {
+	properties {
+		property("sonar.projectKey", "ajmiller611_military-logistics-mgmt")
+		property("sonar.organization", "ajmiller611")
+		property("sonar.host.url", "https://sonarcloud.io")
+		property("sonar.token", System.getenv("SONAR_TOKEN"))
 	}
 }
