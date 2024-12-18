@@ -131,6 +131,10 @@ dependencyManagement {
 }
 
 tasks.testCodeCoverageReport {
+	// Allow CI workflow to bypass dependency so tests are not rerun
+	if (!project.hasProperty('ci')) {
+		mustRunAfter(testing.suites.test, testing.suites.integrationTest)
+	}
 	// Aggregates code coverage reports from unit and integration tests.
 	executionData.from(
 			configurations.aggregateCodeCoverageReportResults.incoming.artifactView {
@@ -147,6 +151,10 @@ tasks.testCodeCoverageReport {
 }
 
 tasks.testAggregateTestReport {
+	// Allow CI workflow to bypass dependency so tests are not rerun
+	if (!project.hasProperty('ci')) {
+		mustRunAfter(testing.suites.test, testing.suites.integrationTest)
+	}
 	// Aggregates test results reports from unit and integration tests.
 	testResults.from(
 			configurations.aggregateTestReportResults.incoming.artifactView {
@@ -171,7 +179,6 @@ tasks.check {
 }
 
 tasks.withType(Checkstyle).configureEach {
-	dependsOn(testing.suites.test, testing.suites.integrationTest)
 	reports {
 		xml.setRequired(false)
 		html.setRequired(true)
