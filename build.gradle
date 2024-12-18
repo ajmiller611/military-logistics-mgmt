@@ -52,7 +52,7 @@ testing {
 						// Generates HTML reports for unit tests.
 						reports {
 							html.setRequired(true)
-							html.outputLocation = layout.buildDirectory.dir("reports/tests/unitTests")
+							html.outputLocation = layout.buildDirectory.dir("reports/tests/unitTest")
 						}
 					}
 				}
@@ -161,7 +161,7 @@ tasks.testAggregateTestReport {
 	)
 
 	// Specify output directory for aggregated test reports to improve organization.
-	destinationDirectory.set(file(layout.buildDirectory.dir("reports/tests/aggregatedTests")))
+	destinationDirectory.set(file(layout.buildDirectory.dir("reports/tests/aggregatedTest")))
 }
 
 tasks.check {

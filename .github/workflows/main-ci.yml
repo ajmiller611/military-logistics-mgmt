@@ -92,9 +92,9 @@ jobs:
       with:
         name: test-results
         path: |
-          build/reports/tests/unitTests
-          build/reports/tests/integrationTests
-          build/reports/tests/aggregatedTests
+          build/reports/tests/unitTest
+          build/reports/tests/integrationTest
+          build/reports/tests/aggregatedTest
 
     # Coverage was run during the build so upload the report
     - name: Upload JaCoCo Coverage Report
