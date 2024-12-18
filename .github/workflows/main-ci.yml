@@ -80,11 +80,11 @@ jobs:
 
     # Generate Code Coverage Report
     - name: Generate Coverage Report
-      run: ./gradlew testCodeCoverageReport
+      run: ./gradlew testCodeCoverageReport -Pci
 
     # Generate Aggregated Test Results Report
     - name: Generate Aggregated Test Results Report
-      run: ./gradlew testAggregateTestReport
+      run: ./gradlew testAggregateTestReport -Pci
 
     # Upload Test Results for Unit, Integration, and Aggregated Tests
     - name: Upload Test Results
