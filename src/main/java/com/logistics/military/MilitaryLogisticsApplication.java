@@ -15,6 +15,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
@@ -40,7 +41,8 @@ public class MilitaryLogisticsApplication {
   }
 
   /**
-   * CommandLineRunner bean that initializes the database with default roles and a user.
+   * CommandLineRunner bean returns a lambda expression to execute instructions
+   * for initializing the database with default roles and a user with "ADMIN" role.
    *
    * <p>This bean is executed when the application starts. It checks if the "ADMIN" role already
    * exists in the RoleRepository. If not, it creates the "ADMIN" and "USER" roles, then creates
@@ -52,10 +54,11 @@ public class MilitaryLogisticsApplication {
    * @param logisticsUserRepository The repository used to interact with the logistics users
    *                                in the database.
    * @param passwordEncoder The password encoder used to encode the user's password.
-   * @return A CommandLineRunner that initializes the database with the roles and admin user
-   *     if they do not already exist.
+   * @return A lambda expression representing the execution of instructions to initialize
+   *         the database with roles and an admin user if they do not already exist.
    */
   @Bean
+  @Profile("dev")
   CommandLineRunner run(
       RoleRepository roleRepository,
       LogisticsUserRepository logisticsUserRepository,

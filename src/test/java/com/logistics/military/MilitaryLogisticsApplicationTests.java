@@ -110,13 +110,19 @@ class MilitaryLogisticsApplicationTests {
     // Set up log capturing
     try (LogCaptor logCaptor = LogCaptor.forClass(MilitaryLogisticsApplication.class)) {
 
-      // Get the CommandLineRunner bean from the application context and run
+      /*
+       * Retrieve the CommandLineRunner Bean, which returns a lambda expression for execution.
+       * Getting the Bean directly from the application bypasses Spring's profile-based
+       * bean management. This allows testing of the bean in the test profile,
+       * even if the bean is normally restricted to the 'dev' profile
+       */
       CommandLineRunner commandLineRunner = application.run(
           roleRepository,
           logisticsUserRepository,
           passwordEncoder,
           clock
       );
+      // Invoke the run method of the CommandLineRunner Bean, which executes the lambda expression
       commandLineRunner.run();
 
       // Verify that Roles were saved with correct values
@@ -156,13 +162,19 @@ class MilitaryLogisticsApplicationTests {
     when(roleRepository.findByAuthority("ADMIN"))
         .thenReturn(Optional.of(new Role("ADMIN")));
 
-    // Get the CommandLineRunner bean from the application context and run
+    /*
+     * Retrieve the CommandLineRunner Bean, which returns a lambda expression for execution.
+     * Getting the Bean directly from the application bypasses Spring's profile-based
+     * bean management. This allows testing of the bean in the test profile,
+     * even if the bean is normally restricted to the 'dev' profile
+     */
     CommandLineRunner commandLineRunner = application.run(
         roleRepository,
         logisticsUserRepository,
         passwordEncoder,
         clock
     );
+    // Invoke the run method of the CommandLineRunner Bean, which executes the lambda expression
     commandLineRunner.run();
 
     // Verify the repositories do not perform any save operations.
