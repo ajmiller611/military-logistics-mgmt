@@ -1,28 +1,25 @@
 package com.logistics.military.controller;
 
+import com.logistics.military.dto.UserPaginationRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
-import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.response.PaginatedData;
 import com.logistics.military.response.ResponseWrapper;
 import com.logistics.military.service.LogisticsUserService;
 import jakarta.validation.Valid;
-import java.util.Optional;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -36,75 +33,55 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
+@Validated
 public class LogisticsUserController {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
   private final LogisticsUserService logisticsUserService;
 
-  private static final String POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE =
+  private static final String NONPOSITIVE_USER_ID_ERROR_MESSAGE =
       "User id must be greater than zero";
 
   /**
    * Retrieves a paginated list of users.
    *
-   * <p>This endpoint allows clients to fetch users in a paginated manner. By default,
+   * <p>This endpoint allows fetching users in a paginated manner. By default,
    * the first page with a size of 10 users is returned if no query parameters are provided.
-   * Clients can specify the desired page number and page size using query parameters.</p>
+   * Specific page number and page size can be provided as parameters.</p>
    *
-   * <p>If invalid parameters are provided (e.g., negative page number or non-positive size), the
-   * response includes a bad request status with an appropriate error message. In case of server
-   * errors, the response contains an error message with a corresponding HTTP status code.</p>
+   * <p>Invalid parameters (e.g., negative page number or non-positive size) are handled
+   * through parameter validation and will result in an appropriate error response.</p>
    *
-   * @param page the page number to retrieve, starting from 0 (default: 0)
-   * @param size the number of users to retrieve per page (default: 10)
+   * @param paginationRequest a {@link UserPaginationRequestDto} containing the
+   *                          page number to retrieve (default: 0) and the number of users to
+   *                          retrieve per page (default: 10)
    * @return a {@link ResponseEntity} containing a {@link ResponseWrapper} with a
-   *     paginated list of {@link UserResponseDto}, or an error message in case of invalid input
-   *     or server errors.
+   *     paginated list of {@link UserResponseDto}.
    */
   @GetMapping({"/", ""})
   public ResponseEntity<ResponseWrapper<PaginatedData<UserResponseDto>>> getUsers(
-      @RequestParam(name = "page", defaultValue = "0") int page,
-      @RequestParam(name = "size", defaultValue = "10") int size) {
+      @Valid UserPaginationRequestDto paginationRequest) {
 
-    // Validate parameters page and size
-    if (page < 0) {
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error("Page number must not be negative"));
-    }
-    if (size <= 0) {
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error("Size must be a positive number")
-      );
-    }
+    logger.info("Fetching users with page: {}, size: {}",
+        paginationRequest.getPage(), paginationRequest.getSize());
 
-    try {
-      Page<UserResponseDto> pagedUsers = logisticsUserService.getUsers(page, size);
-      PaginatedData<UserResponseDto> paginatedData = new PaginatedData<>(
-          pagedUsers.getContent(),
-          pagedUsers.getNumber(),
-          pagedUsers.getTotalPages(),
-          pagedUsers.getTotalElements()
-      );
+    Page<UserResponseDto> pagedUsers =
+        logisticsUserService.getUsers(paginationRequest.getPage(), paginationRequest.getSize());
+    PaginatedData<UserResponseDto> paginatedData = new PaginatedData<>(
+        pagedUsers.getContent(),
+        pagedUsers.getNumber(),
+        pagedUsers.getTotalPages(),
+        pagedUsers.getTotalElements()
+    );
 
-      logger.info("Retrieved users for page {}: {} users ({} total pages, {} total users)",
-          pagedUsers.getNumber(),
-          pagedUsers.getContent().size(),
-          pagedUsers.getTotalPages(),
-          pagedUsers.getTotalElements());
+    logger.info("Retrieved users for page {}: {} users ({} total pages, {} total users)",
+        pagedUsers.getNumber(),
+        pagedUsers.getContent().size(),
+        pagedUsers.getTotalPages(),
+        pagedUsers.getTotalElements());
 
-      return ResponseEntity.ok(
-          ResponseWrapper.success(paginatedData, "Users retrieved successfully"));
-    } catch (DataAccessException e) {
-      logger.error("Database error occurred while fetching users: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-          ResponseWrapper.error("An unexpected error occurred while fetching user data")
-      );
-    } catch (Exception e) {
-      logger.error("Unexpected error occurred: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-          ResponseWrapper.error("An unexpected error occurred")
-      );
-    }
+    return ResponseEntity.ok(
+        ResponseWrapper.success(paginatedData, "Users retrieved successfully"));
   }
 
   /**
@@ -112,32 +89,12 @@ public class LogisticsUserController {
    */
   @GetMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> getUserById(
-      @PathVariable(name = "id") Long id) {
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id) {
 
-    logger.info("Endpoint '/user/{id}' received request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
-      }
-      Optional<LogisticsUser> user = logisticsUserService.getUserById(id);
-
-      if (user.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
-      }
-
-      UserResponseDto responseDto = new UserResponseDto(
-          user.get().getUserId(),
-          user.get().getUsername(),
-          user.get().getEmail()
-      );
-      return ResponseEntity.ok(
-          ResponseWrapper.success(responseDto, "User retrieved successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
-    }
+    logger.info("Endpoint '/user/{id}' received GET request with id = {}", id);
+    UserResponseDto responseDto = logisticsUserService.getUserById(id);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(responseDto, "User retrieved successfully"));
   }
 
   /**
@@ -145,33 +102,13 @@ public class LogisticsUserController {
    */
   @PutMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> updateUser(
-      @PathVariable(name = "id") Long id,
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id,
       @Valid @RequestBody UserUpdateRequestDto updateRequestDto) {
 
     logger.info("Endpoint '/users/{id}' received PUT request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
-      }
-      Optional<LogisticsUser> user = logisticsUserService.updateUser(id, updateRequestDto);
-
-      if (user.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ResponseWrapper.error(String.format("User with id %d does not exist", id)));
-      }
-
-      UserResponseDto responseDto = new UserResponseDto(
-          user.get().getUserId(),
-          user.get().getUsername(),
-          user.get().getEmail()
-      );
-      return ResponseEntity.ok(
-          ResponseWrapper.success(responseDto, "User updated successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Update user request attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
-    }
+    UserResponseDto responseDto = logisticsUserService.updateUser(id, updateRequestDto);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(responseDto, "User updated successfully"));
   }
 
   /**
@@ -179,21 +116,11 @@ public class LogisticsUserController {
    */
   @DeleteMapping("/{id}")
   public ResponseEntity<ResponseWrapper<UserResponseDto>> deleteUser(
-      @PathVariable(name = "id") Long id) {
+      @PathVariable(name = "id") @Positive(message = NONPOSITIVE_USER_ID_ERROR_MESSAGE) Long id) {
 
     logger.info("Endpoint '/users/{id}' received DELETE request with id = {}", id);
-    try {
-      if (id <= 0) {
-        throw new BadRequestException(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE);
-      }
-
-      logisticsUserService.deleteUser(id);
-      return ResponseEntity.ok(
-          ResponseWrapper.success(null, "User deleted successfully"));
-    } catch (BadRequestException e) {
-      logger.error("Delete user request attempted to get user by id with a non positive number");
-      return ResponseEntity.badRequest().body(
-          ResponseWrapper.error(POSITIVE_USER_ID_REQUIRED_ERROR_MESSAGE));
-    }
+    logisticsUserService.deleteUser(id);
+    return ResponseEntity.ok(
+        ResponseWrapper.success(null, "User deleted successfully"));
   }
 }

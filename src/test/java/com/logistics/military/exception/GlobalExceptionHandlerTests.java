@@ -2,14 +2,19 @@ package com.logistics.military.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.logistics.military.response.ResponseWrapper;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,12 +23,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -229,44 +236,46 @@ class GlobalExceptionHandlerTests {
   }
 
   /**
-   * Tests the {@code handleUserDeletionException} method. Verifies that a
-   * {@link UserDeletionException} results in an HTTP 404 (not found) response
+   * Tests the {@code handleDataIntegrityViolationException} method. Verifies that a
+   * {@link DataIntegrityViolationException} results in an HTTP 409 (conflict) response
    * with correct structure and content.
    */
   @Test
-  void givenUserDeletionExceptionWhenHandleUserDeletionExceptionThenConflict() {
+  void givenDataIntegrityViolationExceptionWhenHandleDataIntegrityViolationExceptionThenConflict() {
     try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
-      DataIntegrityViolationException cause = mock(DataIntegrityViolationException.class);
-      UserDeletionException exception =
-          new UserDeletionException("Entity has constraints", cause);
+      DataIntegrityViolationException exception = mock(DataIntegrityViolationException.class);
 
       ResponseEntity<ResponseWrapper<String>> response =
-          globalExceptionHandler.handleUserDeletionException(exception);
+          globalExceptionHandler.handleDataIntegrityViolationException(exception);
 
       assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
       assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
+      assertEquals("A conflict occurred due to database constraints",
+          response.getBody().getMessage());
 
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("DataIntegrityViolationException")
-                  && log.contains("occurred during user deletion with message:")
-                  && log.contains("Entity has constraints"));
+      assertThat(logCaptor.getErrorLogs()).contains("Data integrity violation occurred");
+    }
+  }
 
-      // Unknown cause
-      exception = new UserDeletionException("Entity has constraints", null);
+  /**
+   * Tests the {@code handleOptimisticLockingFailureException} method. Verifies that a
+   * {@link OptimisticLockingFailureException} results in an HTTP 409 (conflict) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenOptimisticLockingFailureWhenHandleOptimisticLockingFailureExceptionThenConflict() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      OptimisticLockingFailureException exception = mock(OptimisticLockingFailureException.class);
 
-      response = globalExceptionHandler.handleUserDeletionException(exception);
+      ResponseEntity<ResponseWrapper<String>> response =
+          globalExceptionHandler.handleOptimisticLockingFailureException(exception);
 
       assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
       assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
+      assertEquals("Concurrency conflict: another user updated the record",
+          response.getBody().getMessage());
 
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("Unknown Cause")
-                  && log.contains("occurred during user deletion with message:")
-                  && log.contains("Entity has constraints"));
+      assertThat(logCaptor.getErrorLogs()).contains("Optimistic locking conflict");
     }
   }
 
@@ -289,6 +298,105 @@ class GlobalExceptionHandlerTests {
       assertEquals("An unexpected database error occurred", response.getBody().getMessage());
 
       assertThat(logCaptor.getErrorLogs()).contains("Database error occurred");
+    }
+  }
+
+  /**
+   * Tests the {@code handleHandlerMethodValidationException} method. Verifies that when a
+   * {@link ConstraintViolationException} occurs from a Jakarta annotation, a
+   * {@link HandlerMethodValidationException} is thrown and wraps a
+   * {@link ConstraintViolationException}. After the exception is handled, it results in an
+   * HTTP 400 (bad request) response with correct structure and content.
+   */
+  @Test
+  void givenConstraintViolationExceptionWhenHandleHandlerMethodValidationExceptionThenBadRequest() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      Path mockPath = mock(Path.class);
+      when(mockPath.toString()).thenReturn("deleteUser.id");
+
+      ConstraintViolation<?> mockViolation = mock(ConstraintViolation.class);
+      when(mockViolation.getPropertyPath()).thenReturn(mockPath);
+      when(mockViolation.getMessage()).thenReturn("User id must be greater than zero");
+      when(mockViolation.getInvalidValue()).thenReturn(0L);
+
+      ConstraintViolationException constraintViolationException = new ConstraintViolationException(
+          Set.of(mockViolation));
+
+      HandlerMethodValidationException mockHandlerMethodValidationException =
+          mock(HandlerMethodValidationException.class);
+      when(mockHandlerMethodValidationException.getCause())
+          .thenReturn(constraintViolationException);
+
+      ResponseEntity<ResponseWrapper<List<Map<String, Object>>>> response =
+          globalExceptionHandler
+              .handleHandlerMethodValidationException(mockHandlerMethodValidationException);
+
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("Validation failed", response.getBody().getMessage());
+      assertEquals("id", response.getBody().getData().getFirst().get("field"));
+      assertEquals("User id must be greater than zero",
+          response.getBody().getData().getFirst().get("message"));
+      assertEquals(0L, response.getBody().getData().getFirst().get("invalidValue"));
+
+      assertThat(logCaptor.getErrorLogs())
+          .contains("HandlerMethodValidationException caught with cause: "
+              + "ConstraintViolationException");
+
+      // Set up when cause is null
+      when(mockHandlerMethodValidationException.getCause()).thenReturn(null);
+
+      globalExceptionHandler
+          .handleHandlerMethodValidationException(mockHandlerMethodValidationException);
+
+      // Assert that a null cause will return Unknown Cause name in the log
+      assertThat(logCaptor.getErrorLogs())
+          .contains("HandlerMethodValidationException caught with cause: "
+              + "Unknown Cause");
+    }
+  }
+
+  /**
+   * Tests the {@code handleConstraintViolationException} method. Verifies that a
+   * {@link ConstraintViolationException} results in an HTTP 400 (bad request) response
+   * with correct structure and content.
+   */
+  @Test
+  void givenConstraintViolationExceptionWhenHandleConstraintViolationExceptionThenBadRequest() {
+    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
+      Path mockPath = mock(Path.class);
+      when(mockPath.toString()).thenReturn("deleteUser.id");
+
+      ConstraintViolation<?> mockViolation = mock(ConstraintViolation.class);
+      when(mockViolation.getPropertyPath()).thenReturn(mockPath);
+      when(mockViolation.getMessage()).thenReturn("User id must be greater than zero");
+      when(mockViolation.getInvalidValue()).thenReturn(0L);
+
+      ConstraintViolationException mockConstraintViolationException =
+          mock(ConstraintViolationException.class);
+      when(mockConstraintViolationException.getConstraintViolations())
+          .thenReturn(Set.of(mockViolation));
+
+      ResponseEntity<ResponseWrapper<List<Map<String, Object>>>> response =
+          globalExceptionHandler
+              .handleConstraintViolationException(mockConstraintViolationException);
+
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
+      assertEquals("Validation failed", response.getBody().getMessage());
+
+      List<Map<String, Object>> errors = response.getBody().getData();
+      assertNotNull(errors);
+      assertEquals(1, errors.size());
+
+      Map<String, Object> error = errors.getFirst();
+      assertEquals("id", error.get("field"));
+      assertEquals("User id must be greater than zero", error.get("message"));
+      assertEquals(0L, error.get("invalidValue"));
+
+      assertThat(logCaptor.getErrorLogs())
+          .contains("Validation failure: deleteUser failed with id having invalid value of 0 with "
+              + "message User id must be greater than zero");
     }
   }
 }

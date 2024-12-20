@@ -130,6 +130,10 @@ dependencyManagement {
 	}
 }
 
+tasks.withType(JavaCompile) {
+	options.compilerArgs << '-parameters' // Preserve parameter names in the compiled class files
+}
+
 tasks.testCodeCoverageReport {
 	// Allow CI workflow to bypass dependency so tests are not rerun
 	if (!project.hasProperty('ci')) {

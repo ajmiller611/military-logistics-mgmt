@@ -2,20 +2,26 @@ package com.logistics.military.exception;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.logistics.military.response.ResponseWrapper;
+import jakarta.validation.ConstraintViolationException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -32,6 +38,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
+  private static final String GENERIC_VALIDATION_FAILED_ERROR_MESSAGE = "Validation failed";
+  private static final String UNKNOWN_CAUSE_NAME = "Unknown Cause";
 
   /**
    * Handles validation exceptions thrown when method arguments fail validation.
@@ -51,7 +59,8 @@ public class GlobalExceptionHandler {
       details.put(fieldName, errorMessage);
     });
 
-    ResponseWrapper<Map<String, String>> response = ResponseWrapper.error("Validation failed");
+    ResponseWrapper<Map<String, String>> response =
+        ResponseWrapper.error(GENERIC_VALIDATION_FAILED_ERROR_MESSAGE);
     response.setData(details);
     return ResponseEntity.badRequest().body(response);
   }
@@ -128,7 +137,7 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ResponseWrapper<String>> handleUserCreationException(
       UserCreationException ex) {
     String causeType =
-        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Unknown Cause";
+        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : UNKNOWN_CAUSE_NAME;
     logger.error("{} occurred during user creation with message: {}",
         causeType, ex.getMessage());
     return ResponseEntity.internalServerError().body(
@@ -169,25 +178,37 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * Handles {@link UserDeletionException} when an error occurs during a deletion of a user.
+   * Handles {@link DataIntegrityViolationException} when database constraints are violated.
    *
-   * @param ex the {@link UserDeletionException} containing the error details
+   * @param ex the {@link DataIntegrityViolationException} containing the error details
    * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
    */
-  @ExceptionHandler(UserDeletionException.class)
-  public ResponseEntity<ResponseWrapper<String>> handleUserDeletionException(
-      UserDeletionException ex) {
-    String causeType =
-        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Unknown Cause";
-    logger.error("{} occurred during user deletion with message: {}",
-        causeType, ex.getMessage());
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleDataIntegrityViolationException(
+      DataIntegrityViolationException ex) {
+    logger.error("Data integrity violation occurred", ex);
     return ResponseEntity.status(HttpStatus.CONFLICT).body(
-        ResponseWrapper.error(ex.getMessage())
+        ResponseWrapper.error("A conflict occurred due to database constraints")
     );
   }
 
   /**
-   * Handles generic database-related exceptions for a {@link DataAccessException} occurrence.
+   * Handles {@link OptimisticLockingFailureException} when an optimistic locking conflict occurs.
+   *
+   * @param ex the {@link OptimisticLockingFailureException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ResponseEntity<ResponseWrapper<String>> handleOptimisticLockingFailureException(
+      OptimisticLockingFailureException ex) {
+    logger.error("Optimistic locking conflict", ex);
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        ResponseWrapper.error("Concurrency conflict: another user updated the record")
+    );
+  }
+
+  /**
+   * Handles the generic database-related {@link DataAccessException} with a generic error response.
    *
    * @param ex the {@link DataAccessException} containing the error details
    * @return a {@link ResponseEntity} containing the error response with the HTTP status of 500
@@ -199,5 +220,74 @@ public class GlobalExceptionHandler {
     return ResponseEntity.internalServerError().body(
         ResponseWrapper.error("An unexpected database error occurred")
     );
+  }
+
+  /**
+   * Handles Spring's method-level validation exceptions, thrown as
+   * {@link HandlerMethodValidationException}. This exception is commonly used as a wrapper for
+   * exceptions thrown by validation annotations. This method inspects the cause of the exception,
+   * delegating the handling to the appropriate exception handler; otherwise, it returns a
+   * generic error response.
+   *
+   * @param ex the {@link HandlerMethodValidationException} containing the error details
+   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 400
+   */
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  public ResponseEntity<ResponseWrapper<List<Map<String, Object>>>>
+      handleHandlerMethodValidationException(HandlerMethodValidationException ex) {
+
+    logger.error("HandlerMethodValidationException caught with cause: {}",
+        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : UNKNOWN_CAUSE_NAME);
+
+    // Combine type checking and variable assignment using pattern variables
+    if (ex.getCause() instanceof ConstraintViolationException exception) {
+      return handleConstraintViolationException(exception);
+    }
+
+    // Return a generic error response for other causes
+    return ResponseEntity.badRequest().body(
+        ResponseWrapper.error(GENERIC_VALIDATION_FAILED_ERROR_MESSAGE)
+    );
+  }
+
+  /**
+   * Handles {@link ConstraintViolationException} thrown by the validation framework.
+   *
+   * <p>This exception is commonly thrown by validation annotations and wrapped by a
+   * {@link HandlerMethodValidationException}. This method will handle cases where the
+   * {@link ConstraintViolationException} is manually thrown.
+   * </p>
+   *
+   * @param ex the {@link ConstraintViolationException} containing the error details
+   * @return a {@link ResponseEntity} containing the {@link List} of violations with the
+   *     HTTP status of 400
+   */
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ResponseWrapper<List<Map<String, Object>>>>
+      handleConstraintViolationException(ConstraintViolationException ex) {
+
+    List<Map<String, Object>> errors = ex.getConstraintViolations()
+        .stream()
+        .map(violation -> {
+          Map<String, Object> error = new LinkedHashMap<>();
+          String[] propertyPath = violation.getPropertyPath().toString().split("\\.");
+          String pathVariableName = propertyPath[1];
+          error.put("field", pathVariableName);
+          error.put("message", violation.getMessage());
+          error.put("invalidValue", violation.getInvalidValue());
+
+          String methodName = propertyPath[0];
+          logger.error(
+              "Validation failure: {} failed with {} having invalid value of {} with message {}",
+              methodName, pathVariableName, violation.getInvalidValue(), violation.getMessage());
+
+          return Collections.unmodifiableMap(error);
+        })
+        .toList();
+
+    ResponseWrapper<List<Map<String, Object>>> response =
+        ResponseWrapper.error(GENERIC_VALIDATION_FAILED_ERROR_MESSAGE);
+    response.setData(errors);
+    return ResponseEntity.badRequest().body(response);
   }
 }

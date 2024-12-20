@@ -3,7 +3,8 @@ package com.logistics.military.controller.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -15,16 +16,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.military.config.AppConfig;
 import com.logistics.military.config.SecurityConfig;
 import com.logistics.military.controller.LogisticsUserController;
+import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
-import com.logistics.military.model.LogisticsUser;
-import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.security.TokenService;
 import com.logistics.military.service.LogisticsUserService;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Set;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,37 +41,29 @@ import org.springframework.test.web.servlet.MockMvc;
  * Unit tests for the {@link LogisticsUserController} class.
  *
  * <p>This test class verifies the functionality of the {@code LogisticsUserController}'s
- * update user endpoint, focusing on ensuring the correct handling of valid and
- * invalid user update requests, as well as appropriate error responses for different scenarios.
+ * update user endpoint, focusing on handling valid user update requests, integration with
+ * validation annotations, response structure consistency, and logging behavior.
  * </p>
  *
  * <h2>Key Features Tested</h2>
  * <ul>
  *   <li>
- *     <strong>Valid User Update:</strong> Ensures that a valid user update request results in a
- *     successful response (status 200) with the updated user details.
+ *     <strong>Valid User Update:</strong> Ensures that a valid user update request returns an
+ *     HTTP 200 status, along with the updated user details in the response.
  *   </li>
  *   <li>
- *     <strong>Validation of User Update Request:</strong> Verifies that invalid user data,
- *     such as an incorrect username or email, results in a proper bad request response (status 400)
- *     with a validation error message.
+ *     <strong>Validation Integration:</strong> Confirms that invalid user input, such as a username
+ *     that does not meet the requirements, results in an HTTP 400 status with an appropriate
+ *     validation error message. Also verifies that the service layer is not called when validation
+ *     fails.
  *   </li>
  *   <li>
- *     <strong>Invalid User ID Handling:</strong> Confirms that when an invalid user ID is provided,
- *     the controller responds with a bad request (status 400) and an appropriate error message.
+ *     <strong>Response Structure Consistency:</strong> Validates that the response follows the
+ *     standard structure, including status, message, and data fields.
  *   </li>
  *   <li>
- *     <strong>Non-Existent User Handling:</strong> Tests that when the service returns an empty
- *     {@link Optional}, indicating that the user does not exist, the controller responds
- *     with a not found (status 404) error and a corresponding error message.
- *   </li>
- *   <li>
- *     <strong>Logging Behavior:</strong> Verifies that the controller logs appropriate messages for
- *     valid and invalid requests, including error logs when an invalid user ID is provided.
- *   </li>
- *   <li>
- *     <strong>Response Structure:</strong> Ensures that the response structure is consistent,
- *     including the status, message, and data fields.
+ *     <strong>Logging Behavior:</strong> Ensures that requests to the update endpoint are logged
+ *     with the expected details for monitoring and debugging purposes.
  *   </li>
  * </ul>
  */
@@ -95,54 +84,62 @@ class LogisticsUserControllerUpdateTests {
 
   Long testUserId;
   UserUpdateRequestDto requestDto;
+  UserResponseDto responseDto;
   String validJson;
 
-  /**
-   * Sets up a test user object, test user id, and request DTO for use during
-   * 'updateUser' method tests.
-   */
+  /** Initializes test data before each test case. */
   @BeforeEach
   void setUp() throws JsonProcessingException {
     testUserId = 2L;
-    Role userRole = new Role("USER");
-    LogisticsUser updatedUser = new LogisticsUser(
-        testUserId,
-        "updatedUsername",
-        "password",
-        "updatedEmail@example.com",
-        LocalDateTime.now(),
-        Set.of(userRole)
-    );
+    String updatedUsername = "updatedUsername";
+    String updatedEmail = "updatedEmail@example.com";
 
-    requestDto = new UserUpdateRequestDto("updatedUsername", "updatedEmail@example.com");
-
+    requestDto = new UserUpdateRequestDto(updatedUsername, updatedEmail);
     validJson = objectMapper.writeValueAsString(requestDto);
 
-    // Mockito uses strict argument matching so if an argument uses an ArgumentMatchers method
-    // then all arguments must be of ArgumentMatchers (e.g. eg() and any()).
-    when(logisticsUserService.updateUser(eq(testUserId), any(UserUpdateRequestDto.class)))
-        .thenReturn(Optional.of(updatedUser));
+    responseDto = new UserResponseDto(
+        testUserId,
+        updatedUsername,
+        updatedEmail
+    );
   }
 
-  /**
-   * Verifies that a valid user with a valid PUT request returns ok (200) with updated user details.
-   */
+  /** Verifies that a valid user's update request returns ok (200) with updated user details. */
   @Test
   @WithMockUser
-  void givenValidRequestDtoWhenUpdateUserThenReturnsSuccessWithUpdatedUserDetails()
+  void givenValidUpdateRequestAndUserIdWhenUpdateUserThenReturnsSuccessWithUpdatedUserDetails()
       throws Exception {
 
+    // Mockito uses strict argument matching, and deserialization creates a new UserUpdateRequestDto
+    // instance, causing exact matches to fail. Using argument matchers (e.g., eq() and any())
+    // ensures the service mock recognizes the ID and request DTO regardless of instance identity.
+    when(logisticsUserService.updateUser(eq(testUserId), any(UserUpdateRequestDto.class)))
+        .thenReturn(responseDto);
+
+
+    mockMvc.perform(put("/users/2")
+            .with(csrf()) // Spring Security enforces CSRF protection for PUT requests.
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validJson))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("success"))
+        .andExpect(jsonPath("$.message").value("User updated successfully"))
+        .andExpect(jsonPath("$.data.userId").value(2L))
+        .andExpect(jsonPath("$.data.username").value("updatedUsername"))
+        .andExpect(jsonPath("$.data.email")
+            .value("updatedEmail@example.com"));
+  }
+
+  /** Verifies that a valid user's update request is logged properly. */
+  @Test
+  @WithMockUser
+  void givenValidUpdateRequestWhenUpdateUserThenLogsRequestProperly() throws Exception {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
       mockMvc.perform(put("/users/2")
-              .with(csrf()) // Spring Security enforces CSRF protection for PUT requests.
+              .with(csrf())
               .contentType(MediaType.APPLICATION_JSON)
               .content(validJson))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.status").value("success"))
-          .andExpect(jsonPath("$.message").value("User updated successfully"))
-          .andExpect(jsonPath("$.data.username").value("updatedUsername"))
-          .andExpect(jsonPath("$.data.email")
-              .value("updatedEmail@example.com"));
+          .andExpect(status().isOk());
 
       assertThat(logCaptor.getInfoLogs())
           .contains("Endpoint '/users/{id}' received PUT request with id = 2");
@@ -150,11 +147,12 @@ class LogisticsUserControllerUpdateTests {
   }
 
   /**
-   * Verifies that an invalid UserUpdateRequestDTO returns an error.
+   * Verifies that an invalid username returns a bad request (400).
+   * This test case verifies that validation annotations are integrated.
    */
   @Test
   @WithMockUser
-  void givenInvalidUserUpdateRequestDtoWhenUpdateUserThenReturnBadRequest() throws Exception {
+  void givenInvalidUsernameWhenUpdateUserThenReturnBadRequest() throws Exception {
     requestDto.setUsername("in");
     String invalidUsernameJson = objectMapper.writeValueAsString(requestDto);
 
@@ -166,53 +164,8 @@ class LogisticsUserControllerUpdateTests {
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"));
 
-    requestDto.setUsername("updatedUsername");
-    requestDto.setEmail("updatedEmailexample.com");
-    String invalidEmailJson = objectMapper.writeValueAsString(requestDto);
-
-    mockMvc.perform(put("/users/2")
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(invalidEmailJson))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"));
-  }
-
-  /**
-   * Verifies that an invalid user id returns an error.
-   */
-  @Test
-  @WithMockUser
-  void givenInvalidUserIdWhenUpdateUserThenReturnBadRequest() throws Exception {
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(put("/users/0")
-              .with(csrf())
-              .contentType(MediaType.APPLICATION_JSON)
-              .content(validJson))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.status").value("error"))
-          .andExpect(jsonPath("$.message").value("User id must be greater than zero"));
-
-      assertThat(logCaptor.getErrorLogs())
-          .contains("Update user request attempted to get user by id with a non positive number");
-    }
-  }
-
-  /**
-   * Verifies that when the service returns an empty {@link Optional} then the response is an error.
-   */
-  @Test
-  @WithMockUser
-  void givenEmptyOptionalFromServiceWhenUpdateUserThenReturnNotFound() throws Exception {
-    reset(logisticsUserService);
-    when(logisticsUserService.updateUser(testUserId, requestDto)).thenReturn(Optional.empty());
-    mockMvc.perform(put("/users/2")
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(validJson))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("User with id 2 does not exist"));
+    // Verifies the validation annotation threw an exception and the user service was not invoked.
+    verify(logisticsUserService, never())
+        .updateUser(any(Long.class), any(UserUpdateRequestDto.class));
   }
 }
