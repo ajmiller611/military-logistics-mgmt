@@ -236,48 +236,6 @@ class GlobalExceptionHandlerTests {
   }
 
   /**
-   * Tests the {@code handleUserDeletionException} method. Verifies that a
-   * {@link UserDeletionException} results in an HTTP 404 (not found) response
-   * with correct structure and content.
-   */
-  @Test
-  void givenUserDeletionExceptionWhenHandleUserDeletionExceptionThenConflict() {
-    try (LogCaptor logCaptor = LogCaptor.forClass(GlobalExceptionHandler.class)) {
-      DataIntegrityViolationException cause = mock(DataIntegrityViolationException.class);
-      UserDeletionException exception =
-          new UserDeletionException("Entity has constraints", cause);
-
-      ResponseEntity<ResponseWrapper<String>> response =
-          globalExceptionHandler.handleUserDeletionException(exception);
-
-      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
-
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("DataIntegrityViolationException")
-                  && log.contains("occurred during user deletion with message:")
-                  && log.contains("Entity has constraints"));
-
-      // Unknown cause
-      exception = new UserDeletionException("Entity has constraints", null);
-
-      response = globalExceptionHandler.handleUserDeletionException(exception);
-
-      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("Entity has constraints");
-
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("Unknown Cause")
-                  && log.contains("occurred during user deletion with message:")
-                  && log.contains("Entity has constraints"));
-    }
-  }
-
-  /**
    * Tests the {@code handleDataIntegrityViolationException} method. Verifies that a
    * {@link DataIntegrityViolationException} results in an HTTP 409 (conflict) response
    * with correct structure and content.

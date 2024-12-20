@@ -4,14 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.logistics.military.exception.UnauthorizedOperationException;
-import com.logistics.military.exception.UserDeletionException;
 import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
@@ -27,7 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -56,13 +53,8 @@ import org.springframework.test.context.ActiveProfiles;
  *     preventing deletion.
  *   </li>
  *   <li>
- *     <strong>Database Integrity Constraint Violations:</strong> Validates that deleting a user
- *     whose records violate foreign key constraints throws a {@link UserDeletionException}, with
- *     meaningful error details.
- *   </li>
- *   <li>
  *     <strong>Repository Interaction:</strong> Ensures that the method correctly interacts with
- *     the {@link LogisticsUserRepository} by invoking the appropriate find and delete operations
+ *     mocked {@link LogisticsUserRepository} by verifying the invocation of the appropriate methods
  *     under various scenarios.
  *   </li>
  *   <li>
@@ -137,24 +129,5 @@ class LogisticsUserServiceDeleteTests {
     assertNotNull(exception);
     assertEquals("Unauthorized user cannot delete admin user with id 2", exception.getMessage());
     verify(logisticsUserRepository, never()).deleteById(any(Long.class));
-  }
-
-  /**
-   * Verifies that a deletion that would violate database constraints throws a
-   * {@link UserDeletionException}.
-   */
-  @Test
-  void givenDeletionThatViolatesDatabaseConstraintsWhenDeleteUserThenThrowUserDeletionException() {
-    when(logisticsUserRepository.findById(VALID_USER_ID)).thenReturn(Optional.of(testUser));
-    doThrow(DataIntegrityViolationException.class)
-        .when(logisticsUserRepository).deleteById(VALID_USER_ID);
-
-    UserDeletionException exception = assertThrows(UserDeletionException.class, () ->
-        logisticsUserService.deleteUser(VALID_USER_ID));
-
-    assertNotNull(exception);
-    assertEquals("The entity has foreign key constraints", exception.getMessage());
-    verify(logisticsUserRepository, times(1)).findById(VALID_USER_ID);
-    verify(logisticsUserRepository, times(1)).deleteById(VALID_USER_ID);
   }
 }

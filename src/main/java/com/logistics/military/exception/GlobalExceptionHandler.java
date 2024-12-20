@@ -178,24 +178,6 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * Handles {@link UserDeletionException} when an error occurs during a deletion of a user.
-   *
-   * @param ex the {@link UserDeletionException} containing the error details
-   * @return a {@link ResponseEntity} containing the error response with the HTTP status of 409
-   */
-  @ExceptionHandler(UserDeletionException.class)
-  public ResponseEntity<ResponseWrapper<String>> handleUserDeletionException(
-      UserDeletionException ex) {
-    String causeType =
-        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : UNKNOWN_CAUSE_NAME;
-    logger.error("{} occurred during user deletion with message: {}",
-        causeType, ex.getMessage());
-    return ResponseEntity.status(HttpStatus.CONFLICT).body(
-        ResponseWrapper.error(ex.getMessage())
-    );
-  }
-
-  /**
    * Handles {@link DataIntegrityViolationException} when database constraints are violated.
    *
    * @param ex the {@link DataIntegrityViolationException} containing the error details
