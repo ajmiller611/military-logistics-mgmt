@@ -141,7 +141,7 @@ class LogisticsUserRepositoryIntegrationTests {
     assertEquals("testUser10", fetchedPagedUsers.getContent().get(4).getUsername());
   }
 
-  /** Verifies when only admin users exist in the database then an empty page is returned */
+  /** Verifies when only admin users exist in the database then an empty page is returned. */
   @Test
   void givenOnlyAdminUsersExistWhenFindAllWithoutRoleThenReturnEmptyPage() {
     initializeDatabaseWithUsersAndAdmin(0, 5);
