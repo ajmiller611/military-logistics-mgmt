@@ -72,12 +72,6 @@ jobs:
         ./gradlew checkStyleTest
         ./gradlew checkStyleIntegrationTest
 
-    # Run Sonar analysis tool
-    - name: SonarCloud Scan
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: ./gradlew sonar
-
     # Generate Code Coverage Report
     - name: Generate Coverage Report
       run: ./gradlew testCodeCoverageReport -Pci
@@ -95,6 +89,12 @@ jobs:
           build/reports/tests/unitTest
           build/reports/tests/integrationTest
           build/reports/tests/aggregatedTest
+
+    # Run Sonar analysis tool
+    - name: SonarCloud Scan
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: ./gradlew sonar
 
     # Coverage was run during the build so upload the report
     - name: Upload JaCoCo Coverage Report
