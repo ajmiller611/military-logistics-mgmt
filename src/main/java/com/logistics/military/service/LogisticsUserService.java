@@ -4,6 +4,7 @@ import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
+import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.exception.UnauthorizedOperationException;
 import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.exception.UserCreationException;
@@ -55,6 +56,7 @@ public class LogisticsUserService implements UserDetailsService {
   private final Clock clock;
 
   private static final String ROLE_NAME_ADMIN = "ADMIN";
+  private static final String NONEXISTENT_USER_ID_ERROR_MESSAGE = "User with id %d does not exist";
 
   /**
    * Registers a new user by validating the input data, encoding the password,
@@ -124,11 +126,9 @@ public class LogisticsUserService implements UserDetailsService {
   /**
    * Retrieves a paginated list of users, excluding any users with the "ADMIN" role.
    *
-   * <p>This method queries the database for all users and filters out users with the "ADMIN" role
-   * before mapping the remaining users to {@link UserResponseDto} objects.
+   * <p>This method queries the database for all users without the "ADMIN" role before mapping
+   * the remaining users to {@link UserResponseDto} objects.
    * </p>
-   *
-   * <p>The filtering out "ADMIN" roles is for security purposes.</p>
    *
    * @param page the page number to retrieve.
    * @param size the number of users per page.
@@ -138,19 +138,17 @@ public class LogisticsUserService implements UserDetailsService {
   public Page<UserResponseDto> getUsers(int page, int size) {
     // Set the paging restrictions for the pageable object
     Pageable pageable = PageRequest.of(page, size);
-    Page<LogisticsUser> usersPage = logisticsUserRepository.findAll(pageable);
-
-    // Exclude admin users to protect admin user's details.
-    List<LogisticsUser> filteredUsers = usersPage.getContent().stream().filter(
-        user -> !user.hasRole(ROLE_NAME_ADMIN))
-        .toList();
+    Role adminRole = roleRepository.findByAuthority(ROLE_NAME_ADMIN).orElseThrow(
+        () -> new RoleNotFoundException("Role 'ADMIN' not found"));
+    Page<LogisticsUser> usersPage =
+        logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
     // Convert the users to response DTOs
-    List<UserResponseDto> userResponseDtos = filteredUsers.stream()
+    List<UserResponseDto> userResponseDtos = usersPage.stream()
         .map(this::mapToUserResponseDto)
         .toList();
 
-    return new PageImpl<>(userResponseDtos, pageable, filteredUsers.size());
+    return new PageImpl<>(userResponseDtos, pageable, userResponseDtos.size());
   }
 
   /**
@@ -168,7 +166,7 @@ public class LogisticsUserService implements UserDetailsService {
   public UserResponseDto getUserById(Long id) {
     LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
         () -> new UserNotFoundException(
-            String.format("User with id %d does not exist", id), "getUserById"));
+            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "getUserById"));
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -188,7 +186,7 @@ public class LogisticsUserService implements UserDetailsService {
   public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
     LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
         () -> new UserNotFoundException(
-            String.format("User with id %d does not exist", id), "updateUser"));
+            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "updateUser"));
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -218,7 +216,7 @@ public class LogisticsUserService implements UserDetailsService {
   public void deleteUser(Long id) {
     LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
         () -> new UserNotFoundException(
-            String.format("User with id %d does not exist", id), "deleteUser"));
+            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "deleteUser"));
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
