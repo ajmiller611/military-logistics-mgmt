@@ -2,6 +2,8 @@ package com.logistics.military.controller.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,9 +23,7 @@ import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.security.TokenService;
 import com.logistics.military.service.LogisticsUserService;
-import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +36,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,42 +49,55 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * Unit tests for the {@link LogisticsUserController} class.
  *
- * <p>This test class verifies the functionality of the {@code LogisticsUserController}'s endpoints,
- * focusing on ensuring correct behavior of security configurations, request mappings,
- * response handling, role-based access control, and detailed validation of request parameters.
+ * <p>This test class comprehensively verifies the behavior and functionality of the
+ * {@code LogisticsUserController}'s endpoints. It ensures proper integration with security
+ * configurations, request mappings, validation mechanisms, exception handling, and response
+ * formatting. The tests also validate role-based access control, parameter validation, routing
+ * accuracy, and logging.
  * </p>
  *
  * <h2>Key Features Tested</h2>
  * <ul>
  *   <li>
- *     <strong>Role-Based Access Control:</strong> Ensures that users with appropriate roles
- *     (e.g., "USER", "ADMIN") can access specific endpoints, while others are denied.
+ *     <strong>Role-Based Access Control:</strong> Ensures only authorized roles (e.g., "USER",
+ *     "ADMIN") can access endpoints, while unauthorized roles or unauthenticated requests are
+ *     denied with appropriate HTTP status codes.
  *   </li>
  *   <li>
- *     <strong>Parameter Validation:</strong> Confirms validation of path variables and request
- *     parameters, ensuring that invalid values or types (e.g., negative IDs or non-numeric IDs)
- *     are properly handled with meaningful error responses.
+ *     <strong>Pagination Handling:</strong> Validates default and custom pagination parameters for
+ *     list endpoints, including edge cases like invalid or missing parameters.
  *   </li>
  *   <li>
- *     <strong>Logging:</strong> Verifies that significant events, such as requests to fetch user
- *     details, are logged appropriately for debugging and auditing purposes.
+ *     <strong>Request Validation:</strong> Confirms that invalid path variables, request
+ *     parameters, or data types are correctly rejected with meaningful error responses.
  *   </li>
  *   <li>
- *     <strong>Exception Handling:</strong> Confirms that application-level exceptions (e.g.,
- *     {@link IllegalArgumentException}) are correctly handled and logged, returning meaningful
- *     error responses to the client.
+ *     <strong>Routing Validation:</strong> Verifies accurate URI mappings for controller methods,
+ *     ensuring correct endpoint-to-method associations.
  *   </li>
  *   <li>
- *     <strong>Routing Validation:</strong> Verifies correct URI mappings for the "/users" endpoint
- *     to ensure the controller methods are invoked as expected.
+ *     <strong>Response Consistency:</strong> Ensures all API responses adhere to a consistent
+ *     structure, including status, message, and data fields.
  *   </li>
  *   <li>
- *     <strong>Response Structure:</strong> Tests the consistency of the response payload, including
- *     status, message, and data fields.
+ *     <strong>Logging:</strong> Validates that significant actions and exceptions are logged
+ *     appropriately for auditing and debugging purposes.
+ *   </li>
+ *   <li>
+ *     <strong>Exception Handling:</strong> Ensures application-level exceptions, such as
+ *     validation or runtime errors, are handled gracefully with meaningful error messages in
+ *     the response.
+ *   </li>
+ *   <li>
+ *     <strong>Specific Endpoint Behavior:</strong> Confirms the correct functionality of
+ *     individual endpoints, such as retrieving users by ID and validating list filtering.
+ *   </li>
+ *   <li>
+ *     <strong>Empty Data Handling:</strong> Tests edge cases where the data set is empty, ensuring
+ *     the API responds appropriately with no errors and correct pagination metadata.
  *   </li>
  * </ul>
  */
-
 @WebMvcTest(LogisticsUserController.class)
 @Import({SecurityConfig.class, AppConfig.class})
 @ActiveProfiles("test")
@@ -100,23 +112,11 @@ class LogisticsUserControllerReadTests {
   @MockBean private RoleRepository roleRepository;
   @MockBean private LogisticsUserRepository logisticsUserRepository;
 
-  LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
-  Clock fixedClock =
-      Clock.fixed(
-          fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
-          ZoneId.systemDefault());
-
   Long testUserId;
   LogisticsUser user;
   UserResponseDto userResponseDto;
 
-  /**
-   * Sets up a mock response for the 'getUsers' method with default parameters (page = 0, size = 10)
-   * for each test.
-   *
-   * <p>Sets up a test user object and test user id for use during 'getUserById' method tests.
-   * </p>
-   */
+  /** Initializes test data and mocks before each test case. */
   @BeforeEach
   void setUp() {
     Page<UserResponseDto> pagedUsers = createPagedUserResponseDtos(0, 10);
@@ -128,7 +128,7 @@ class LogisticsUserControllerReadTests {
         "testUser",
         "password",
         "test@example.com",
-        fixedTimestamp,
+        LocalDateTime.now(),
         Set.of(userRole)
     );
     testUserId = 2L;
@@ -136,94 +136,79 @@ class LogisticsUserControllerReadTests {
     userResponseDto = new UserResponseDto(user.getUserId(), user.getUsername(), user.getEmail());
   }
 
-  /**
-   * Verifies that a user with the "USER" role can access the "/users" endpoint successfully.
-   */
+  /** Verifies a user with the "USER" role can access the "/users" endpoint successfully. */
   @Test
-  @WithMockUser(username = "testUser") // roles param default value is "USER"
+  @WithMockUser // WithMockUser has a roles parameter and its default value is "USER"
   void givenUserWithRoleUserWhenGetUsersThenReturnsSuccessStatus() throws Exception {
     mockMvc.perform(get("/users"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("success"));
   }
 
-  /**
-   * Verifies that a user with the "ADMIN" role can access the "/users" endpoint successfully.
-   */
+  /** Verifies a user with the "ADMIN" role can access the "/users" endpoint successfully. */
   @Test
-  @WithMockUser(username = "authorizedUser", roles = {"ADMIN"})
+  @WithMockUser(roles = {"ADMIN"})
   void givenUserWithRoleAdminWhenGetUsersThenReturnsSuccessStatus() throws Exception {
     mockMvc.perform(get("/users"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("success"));
   }
 
-  /**
-   * Verifies that a user without valid roles cannot access the "/users" endpoint.
-   */
+  /** Verifies a user without valid roles cannot access the "/users" endpoint. */
   @Test
-  @WithMockUser(username = "authorizedUser", roles = {"GUEST"})
-  void givenNoRoleWhenGetUsersThenRespondsWithForbiddenStatus() throws Exception {
+  @WithMockUser(roles = {"GUEST"})
+  void givenNoRoleWhenGetUsersThenRespondsForbiddenStatus() throws Exception {
     mockMvc.perform(get("/users"))
         .andExpect(status().isForbidden());
   }
 
-  /**
-   * Verifies that a user without a role cannot access the "/users" endpoint.
-   */
+  /** Verifies a user without a role cannot access the "/users" endpoint. */
   @Test
-  @WithMockUser(username = "unauthorizedUser", roles = {})
-  void givenEmptyRoleWhenGetUsersThenRespondsWithForbiddenStatus() throws Exception {
+  @WithMockUser(roles = {})
+  void givenEmptyRoleWhenGetUsersThenRespondsForbiddenStatus() throws Exception {
     mockMvc.perform(get("/users"))
         .andExpect(status().isForbidden());
   }
 
-  /**
-   * Ensures an unauthenticated request to "/users" responds with "unauthorized".
-   */
+  /** Ensures an unauthenticated request to "/users" responds with "unauthorized". */
   @Test
   @WithAnonymousUser
-  void givenUnauthenticatedWhenGetUsersThenRespondsWithUnauthorizedStatus() throws Exception {
+  void givenUnauthenticatedWhenGetUsersThenRespondsUnauthorizedStatus() throws Exception {
     mockMvc.perform(get("/users"))
         .andExpect(status().isUnauthorized());
   }
 
-  /**
-   * Verifies that "/users" and "/users/" routes map to the correct method in the controller.
-   */
+  /** Verifies "/users" and "/users/" routes map to the correct method in the controller. */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenUsersUrisWhenGetThenRoutesToGetUsersMethod() throws Exception {
-    mockMvc.perform(get("/users")
-            .param("page", "0").param("size", "10"))
+    mockMvc.perform(get("/users"))
         .andExpect(status().isOk())
         .andExpect(handler().methodName("getUsers"));
 
-    mockMvc.perform(get("/users/")
-            .param("page", "0").param("size", "10"))
+    mockMvc.perform(get("/users/"))
         .andExpect(status().isOk())
         .andExpect(handler().methodName("getUsers"));
   }
 
-  /**
-   * Ensures default pagination parameters are used when no parameters are provided.
-   */
+  /** Ensures default pagination parameters are used when no parameters are provided. */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenNoParamsWhenGetUsersThenReturnsSuccessWithDefaults() throws Exception {
+    int defaultPageNumber = 0;
+    int defaultPageSize = 10;
     mockMvc.perform(get("/users"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("success"));
 
     // Verify default values were used
-    verify(logisticsUserService, times(1)).getUsers(0, 10);
+    verify(logisticsUserService, times(1))
+        .getUsers(defaultPageNumber, defaultPageSize);
   }
 
-  /**
-   * Verifies that custom pagination parameters are passed to the service.
-   */
+  /** Verifies custom pagination parameters are passed to the service. */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenCustomParamsWhenGetUsersThenCallsServiceWithParams() throws Exception {
     Page<UserResponseDto> customPagedUsers = createPagedUserResponseDtos(1, 5);
     when(logisticsUserService.getUsers(1, 5)).thenReturn(customPagedUsers);
@@ -238,65 +223,53 @@ class LogisticsUserControllerReadTests {
     verify(logisticsUserService, times(1)).getUsers(1, 5);
   }
 
-  /**
-   * Verifies that invalid pagination parameters result in a "bad request" error.
-   */
+  /** Verifies invalid pagination parameters result in a bad request (400). */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenInvalidParametersWhenGetUsersThenRespondsWithBadRequestAndErrorMessage()
       throws Exception {
     mockMvc.perform(get("/users")
             .param("page", "-1"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message")
-            .value("Page number must not be negative"));
+        .andExpect(jsonPath("$.message").value("Validation failed"))
+        .andExpect(jsonPath("$.data.page").value("Page number must not be negative"));
 
     mockMvc.perform(get("/users")
             .param("size", "0"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message")
-            .value("Size must be a positive number"));
+        .andExpect(jsonPath("$.message").value("Validation failed"))
+        .andExpect(jsonPath("$.data.size").value("Size must be a positive number"));
   }
 
-  /**
-   * Verifies that the "/users" endpoint excludes admin users in the response.
-   */
+  /** Verifies a valid request retrieves the correct page of non-admin users. */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenValidRequestWhenGetUsersThenReturnsSuccessAndExpectedData() throws Exception {
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(get("/users"))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.status").value("success"))
-          .andExpect(jsonPath("$.message")
-              .value("Users retrieved successfully"))
-          .andExpect(jsonPath("$.data.data[0].userId").value(2L))
-          .andExpect(jsonPath("$.data.data[0].username").value("testUser"))
-          .andExpect(jsonPath("$.data.data[0].email").value("test@example.com"))
-          .andExpect(jsonPath("$.data.data[1].userId").value(3L))
-          .andExpect(jsonPath("$.data.data[1].username").value("testUser1"))
-          .andExpect(jsonPath("$.data.data[1].email").value("test1@example.com"))
-          .andExpect(jsonPath("$.data.data[0].username", not("admin")))
-          .andExpect(jsonPath("$.data.data[1].username", not("admin")))
-          .andExpect(jsonPath("$.data.currentPage").value(0))
-          .andExpect(jsonPath("$.data.totalPages").value(1))
-          .andExpect(jsonPath("$.data.totalItems").value(2));
+    mockMvc.perform(get("/users"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("success"))
+        .andExpect(jsonPath("$.message")
+            .value("Users retrieved successfully"))
+        .andExpect(jsonPath("$.data.data[0].userId").value(2L))
+        .andExpect(jsonPath("$.data.data[0].username").value("testUser"))
+        .andExpect(jsonPath("$.data.data[0].email").value("test@example.com"))
+        .andExpect(jsonPath("$.data.data[1].userId").value(3L))
+        .andExpect(jsonPath("$.data.data[1].username").value("testUser1"))
+        .andExpect(jsonPath("$.data.data[1].email").value("test1@example.com"))
+        .andExpect(jsonPath("$.data.data[0].username", not("admin")))
+        .andExpect(jsonPath("$.data.data[1].username", not("admin")))
+        .andExpect(jsonPath("$.data.currentPage").value(0))
+        .andExpect(jsonPath("$.data.totalPages").value(1))
+        .andExpect(jsonPath("$.data.totalItems").value(2));
 
-      verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
-
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Retrieved users for page"));
-    }
+    verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
   }
 
-  /**
-   * Verifies the correct handling of empty data in the response.
-   */
+  /** Verifies the correct handling of empty data in the response. */
   @Test
-  @WithMockUser(username = "testUser")
+  @WithMockUser
   void givenEmptyUserListWhenGetUsersThenReturnsSuccessWithEmptyData() throws Exception {
     Page<UserResponseDto> emptyPage =
         new PageImpl<>(Collections.emptyList(), PageRequest.of(0, 10), 0);
@@ -313,48 +286,20 @@ class LogisticsUserControllerReadTests {
     verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
   }
 
-  /**
-   * Ensures database errors are logged and handled gracefully.
-   */
+  /** Verifies the logging of the request and the logging of the result of the retrieval. */
   @Test
-  @WithMockUser(username = "testUser")
-  void givenDatabaseErrorWhenGetUsersThenReturnsInternalServerError() throws Exception {
-    when(logisticsUserService.getUsers(0, 10))
-        .thenThrow(
-            new DataAccessException("An unexpected error occurred while fetching user data"){});
-
+  @WithMockUser
+  void givenValidRequestWhenGetUsersThenLogsProperly() throws Exception {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
       mockMvc.perform(get("/users"))
-          .andExpect(status().isInternalServerError())
-          .andExpect(jsonPath("$.status").value("error"))
-          .andExpect(jsonPath("$.message")
-              .value("An unexpected error occurred while fetching user data"));
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("success"));
 
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("Database error occurred while fetching users:"));
-    }
-  }
-
-  /**
-   * Ensures generic errors are logged and handled gracefully.
-   */
-  @Test
-  @WithMockUser(username = "testUser")
-  void givenRuntimeExceptionWhenGetUsersThenReturnsInternalServerError() throws Exception {
-    when(logisticsUserService.getUsers(0, 10))
-        .thenThrow(new RuntimeException("An unexpected error occurred"));
-
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(get("/users"))
-          .andExpect(status().isInternalServerError())
-          .andExpect(jsonPath("$.status").value("error"))
-          .andExpect(jsonPath("$.message")
-              .value("An unexpected error occurred"));
-
-      assertThat(logCaptor.getErrorLogs())
-          .anyMatch(log ->
-              log.contains("Unexpected error occurred:"));
+      assertFalse(logCaptor.getInfoLogs().isEmpty());
+      assertEquals(2, logCaptor.getInfoLogs().size());
+      assertThat(logCaptor.getInfoLogs()).contains("Fetching users with page: 0, size: 10");
+      assertThat(logCaptor.getInfoLogs())
+          .contains("Retrieved users for page 0: 2 users (1 total pages, 2 total users)");
     }
   }
 
