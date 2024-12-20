@@ -130,7 +130,7 @@ dependencyManagement {
 	}
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs << '-parameters' // Preserve parameter names in the compiled class files
 }
 
