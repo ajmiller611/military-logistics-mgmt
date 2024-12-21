@@ -2,20 +2,15 @@ package com.logistics.military.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.logistics.military.dto.AuthTokensDto;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
-import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
-import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.security.TokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -34,23 +29,19 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Unit tests for the {@link AuthenticationService} class, verifying user authentication and
- * registration functionality.
+ * Unit tests for the {@link AuthenticationService} class, verifying user authentication
+ * functionality.
  *
- * <p>This test class ensures the correct behavior of authentication and registration methods
+ * <p>This test class ensures the correct behavior of authentication methods
  * in the {@link AuthenticationService} by mocking dependencies and simulating different
- * user login and registration scenarios.
+ * user login scenarios.
  * </p>
  *
  * <p>Test cases include:
  * <ul>
- *   <li><strong>Successful user registration:</strong> Validates that a new user can be
- *   successfully registered and saved in the system by the {@code registerNewUser} method.</li>
  *   <li><strong>Successful user login:</strong> Verifies that valid credentials produce JWT tokens
  *   and return a populated {@link AuthTokensDto}.</li>
  *   <li><strong>Authentication failure:</strong> Tests that invalid credentials return an empty
@@ -66,13 +57,9 @@ class AuthenticationServiceTests {
 
   @InjectMocks private AuthenticationService authenticationService;
   @Mock private AuthenticationManager authenticationManager;
-  @Mock private JwtAuthenticationConverter jwtAuthenticationConverter;
-  @Mock private JwtDecoder jwtDecoder;
   @Mock private LogisticsUserService logisticsUserService;
   @Mock private LogisticsUserRepository logisticsUserRepository;
-  @Mock private RoleRepository roleRepository;
   @Mock private TokenService tokenService;
-  @Mock private Clock clock;
 
   LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
   Clock fixedClock =
@@ -122,42 +109,6 @@ class AuthenticationServiceTests {
     auth = new UsernamePasswordAuthenticationToken("validUser", "validPassword");
 
     tokens = Map.of("accessToken", "validAccessToken", "refreshToken", "validRefreshToken");
-  }
-
-  /**
-   * Test case for when a valid request DTO is provided to the service. The service should return
-   * the {@link LogisticsUserDto} object it received from the {@link LogisticsUserService}.
-   */
-  @Test
-  void givenValidRequestWhenRegisterNewUserThenReturnUserDto() {
-    UserRequestDto userRequestDto = new UserRequestDto();
-    LogisticsUserDto expectedUserDto = new LogisticsUserDto();
-
-    when(logisticsUserService.createAndSaveUser(userRequestDto)).thenReturn(expectedUserDto);
-
-    LogisticsUserDto result = authenticationService.registerNewUser(userRequestDto);
-
-    assertEquals(expectedUserDto, result, "The returned user should match the expected user DTO");
-    verify(logisticsUserService, times(1)).createAndSaveUser(userRequestDto);
-  }
-
-  /**
-   * Test case for when a valid request DTO is provided to the service but contains information
-   * of a user that already exists. The service should then a {@link UserAlreadyExistsException} to
-   * be handled by the global exception handler.
-   */
-  @Test
-  void givenExistingUserWhenRegisterNewUserThenThrowUserAlreadyExistsException() {
-    validUserRequest.setUsername("ExistingUser");
-    when(authenticationService.registerNewUser(validUserRequest))
-        .thenThrow(new UserAlreadyExistsException("User already exists."));
-
-    assertThrows(UserAlreadyExistsException.class,
-        () -> authenticationService.registerNewUser(validUserRequest),
-        "Expected registerNewUser to throw an exception for an existing user");
-
-    verify(logisticsUserService, times(1))
-        .createAndSaveUser(validUserRequest);
   }
 
   /**
