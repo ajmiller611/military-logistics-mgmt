@@ -4,6 +4,7 @@ import com.logistics.military.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -98,9 +99,11 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        .csrf(csrf -> csrf.ignoringRequestMatchers("/auth/**"))
+        .csrf(csrf ->
+            csrf.ignoringRequestMatchers("/auth/**", "/users", "/users/"))
         .authorizeHttpRequests(auth -> {
           auth.requestMatchers("/auth/**").permitAll();
+          auth.requestMatchers(HttpMethod.POST, "/users", "/users/").permitAll();
           auth.requestMatchers("/admin/**").hasRole("ADMIN");
           auth.requestMatchers("/users/**").hasAnyRole("ADMIN", "USER");
           auth.anyRequest().authenticated();
