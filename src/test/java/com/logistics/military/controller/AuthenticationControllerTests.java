@@ -1,8 +1,6 @@
 package com.logistics.military.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.text.MatchesPattern.matchesPattern;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -11,7 +9,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,8 +18,6 @@ import com.logistics.military.dto.AuthTokensDto;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.model.Role;
-import com.logistics.military.repository.LogisticsUserRepository;
-import com.logistics.military.repository.RoleRepository;
 import com.logistics.military.security.TokenService;
 import com.logistics.military.service.AuthenticationService;
 import com.logistics.military.service.LogisticsUserService;
@@ -36,7 +31,6 @@ import java.util.Set;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -44,7 +38,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -54,7 +47,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Unit tests for {@link AuthenticationController}, validating the functionality
- * of authentication-related endpoints, including registration and login flows.
+ * of authentication-related endpoints, including login flows.
  *
  * <p>This test class covers both successful and error scenarios for each endpoint,
  * ensuring proper response statuses, response structure, and handling of edge cases.
@@ -62,8 +55,6 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>Test cases include:
  * <ul>
- *     <li><b>Register Endpoint:</b> Verifies successful registration and handles invalid input
- *     cases.</li>
  *     <li><b>Login Endpoint:</b> Verifies successful login and invalid login attempts.</li>
  *     <li><b>Refresh Token Endpoint:</b> Verifies responses to valid and invalid refresh tokens.
  *     </li>
@@ -86,478 +77,12 @@ class AuthenticationControllerTests {
   @MockBean private TokenService tokenService;
   @MockBean private JwtAuthenticationConverter jwtAuthenticationConverter;
   @MockBean private JwtDecoder jwtDecoder;
-  @MockBean private RoleRepository roleRepository;
-  @MockBean private LogisticsUserRepository logisticsUserRepository;
-  @MockBean private PasswordEncoder passwordEncoder;
-  @Mock private Clock clock;
 
   LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 11, 17, 0, 0, 0, 0);
   Clock fixedClock =
       Clock.fixed(
           fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
           ZoneId.systemDefault());
-
-  /**
-   * Test that the /auth/register endpoint will log a received request and its response.
-   */
-  @Test
-  void givenRequestReceivedWhenRegisterUserThenLogRequestAndResponse() throws Exception {
-    // Create a test user
-    Role userRole = new Role("USER");
-    LogisticsUserDto testUser = new LogisticsUserDto(
-        2L,
-        "testUser",
-        "test@example.com",
-        fixedTimestamp,
-        Set.of(userRole)
-    );
-    when(authenticationService.registerNewUser(any(UserRequestDto.class))).thenReturn(testUser);
-
-    try (LogCaptor logCaptor = LogCaptor.forClass(AuthenticationController.class)) {
-      String json = """
-          {
-            "username": "testUser",
-            "password": "password",
-            "email": "test@example.com"
-          }
-          """;
-
-      // Mock the post request to /auth/register
-      mockMvc.perform(post("/auth/register")
-          .contentType(MediaType.APPLICATION_JSON)
-          .content(json));
-
-      // Verify the log entry of received request
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /auth/register received request")
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-
-      // Verify the log entry of response with key data points
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /auth/register response:")
-                  && log.contains(testUser.getUserId().toString())
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-    }
-  }
-
-  /**
-   * Test that the /auth/register endpoint will respond with a status of 201 Created,
-   * the location of the created user, and the created user's details.
-   */
-  @Test
-  void givenValidUserDetailsWhenRegisterUserThenReturnCreatedResponse() throws Exception {
-    // Set up the clock to return the fixed timestamp
-    when(clock.instant()).thenReturn(fixedClock.instant());
-    when(clock.getZone()).thenReturn(fixedClock.getZone());
-
-    Role userRole = new Role("USER");
-    LogisticsUserDto testUser = new LogisticsUserDto(
-        2L,
-        "testUser",
-        "test@example.com",
-        fixedTimestamp,
-        Set.of(userRole)
-    );
-    when(authenticationService.registerNewUser(any(UserRequestDto.class))).thenReturn(testUser);
-
-    String json = """
-        {
-          "username": "testUser",
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
-
-    // Mock the post request to /auth/register and verify the response
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isCreated())
-        .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
-        .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
-        .andExpect(jsonPath("$.username").value(testUser.getUsername()))
-        .andExpect(jsonPath("$.email").value(testUser.getEmail()));
-
-    // Test valid special characters in email
-    testUser.setEmail("te.st-User_name+@ex-am..pl.e2.com");
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "te.st-User_name+@ex-am..pl.e2.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isCreated())
-        .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
-        .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
-        .andExpect(jsonPath("$.username").value(testUser.getUsername()))
-        .andExpect(jsonPath("$.email").value(testUser.getEmail()));
-  }
-
-  /**
-   * Test the /auth/register endpoint will respond with 400 Bad Request
-   * when an unknown field is present in the request.
-   */
-  @Test
-  void givenUnknownFieldWhenRegisterUserThenReturnBadRequest() throws Exception {
-    // Test an unknown field of userId exists
-    String json = """
-        {
-          "userId": 3,
-          "username": "testUser",
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Unrecognized field named 'userId'."));
-  }
-
-  /**
-   * Test the /auth/register endpoint will respond with 400 Bad Request when the username field
-   * has different types of invalid values.
-   */
-  @Test
-  void givenInvalidUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
-    // Test null username
-    String json = """
-        {
-          "username": null,
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.username")
-            .value("Username is required"));
-
-    // Test empty username
-    json = """
-      {
-        "username": "",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.username")
-            .value("Username is required"));
-
-    // Test username is too short
-    json = """
-      {
-        "username": "t",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.username")
-            .value("Username must be between 3 and 20 characters"));
-
-    // Test username is too long
-    json = """
-      {
-        "username": "testUsernameIsTooLong",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.username")
-            .value("Username must be between 3 and 20 characters"));
-  }
-
-  /**
-   * Test the /auth/register endpoint will respond with 400 Bad Request when the password field
-   * has different types of invalid values.
-   */
-  @Test
-  void givenInvalidPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
-    // Test password is null
-    String json = """
-        {
-          "username": "testUser",
-          "password": null,
-          "email": "test@example.com"
-        }
-        """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.password")
-            .value("Password is required"));
-
-    // Test password is empty
-    json = """
-      {
-        "username": "testUser",
-        "password": "",
-        "email": "test@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.password")
-            .value("Password is required"));
-
-    // Test password is too short
-    json = """
-      {
-        "username": "testUser",
-        "password": "pass",
-        "email": "test@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.password")
-            .value("Password must be at least 8 characters"));
-  }
-
-  /**
-   * Test the /auth/register endpoint will respond with 400 Bad Request when the email field
-   * has different types of invalid values.
-   */
-  @Test
-  void givenInvalidEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
-    // Test email with null value
-    String json = """
-        {
-          "username": "testUser",
-          "password": "password",
-          "email": null
-        }
-        """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Email is required"));
-
-
-    // Test email is empty
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": ""
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Email is required"));
-
-    // Test email missing @ symbol
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "testexample.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Email invalid. Missing '@' symbol"));
-
-    // Test username of email is invalid
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test!@example.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Username of Email is invalid."
-                + " Only letters, digits, '+', '_', '.', and '-' are valid."));
-
-    // Test email missing period for domain extension
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain extension is missing (no period)."));
-
-    // Test email missing domain extension
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example."
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain extension is missing."));
-
-    // Test domain part of email is invalid with invalid character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@exam*ple.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain of Email is invalid."
-                + " Only letters, digits, '.', and '-' are valid."));
-
-    // Test domain part of email
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@ex.am.p*le.com"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain of Email is invalid."
-                + " Only letters, digits, '.', and '-' are valid."));
-
-    // Test top-level domain is invalid with one character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example.c"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain extension is invalid."
-                + " Only letters are valid and must be at least 2 characters."));
-
-    // Test top-level domain is invalid with invalid character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example.co*m"
-      }
-      """;
-
-    mockMvc.perform(post("/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status").value("error"))
-        .andExpect(jsonPath("$.message").value("Validation failed"))
-        .andExpect(jsonPath("$.data.email")
-            .value("Domain extension is invalid."
-                + " Only letters are valid and must be at least 2 characters."));
-  }
 
   /**
    * Test that the /auth/login endpoint will log a received request and its response.
