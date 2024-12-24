@@ -7,8 +7,6 @@ import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.exception.UnauthorizedOperationException;
-import com.logistics.military.exception.UserAlreadyExistsException;
-import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -17,7 +15,6 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -53,19 +50,20 @@ public class LogisticsUserService implements UserDetailsService {
   private final Clock clock;
 
   private static final String ROLE_NAME_ADMIN = "ADMIN";
-  private static final String NONEXISTENT_USER_ID_ERROR_MESSAGE = "User with id %d does not exist";
 
   /**
-   * Registers a new user by validating the input data, encoding the password,
-   * assigning a default role, and saving the user information to the database.
+   * Registers a new user by encoding the password and assigning a default role before
+   * saving the user information to the database.
    *
-   * <p>This method ensures secure handling of user data, including password encryption
-   * and role assignment. It validates that the user is new.
+   * <p>This method ensures secure handling of user data by performing the following actions:
+   * - Validating the user does not already exist (via {@link CheckUserExistence}).
+   * - Encoding the user's password before saving.
+   * - Assigning the default "USER" role to the new user.
+   * - Persisting the user in the database and returning the user details.
    * </p>
    *
    * @param userRequestDto the {@link UserRequestDto} containing the user's registration data.
    * @return a {@link LogisticsUserDto} object containing the registered user's details.
-   * @throws UserAlreadyExistsException if the username already exists in the database.
    * @throws IllegalStateException if the "USER" role is missing in the database.
    */
   @CheckUserExistence(checkBy = "username")
@@ -125,14 +123,16 @@ public class LogisticsUserService implements UserDetailsService {
   /**
    * Retrieves a user with the specified ID, excluding users with the "ADMIN" role.
    *
-   * <p>This method queries the database for a user with the given ID. If the user has an
-   * "ADMIN" role, the method returns an empty {@link Optional}. Non-existent user IDs
-   * also result in an empty {@link Optional}.
+   * <p>This method queries the database for a user with the given ID. If the user exists and
+   * does not have the "ADMIN" role, the method returns a {@link UserResponseDto} containing the
+   * user's details. If the user has the "ADMIN" role, it throws an
+   * {@link UnauthorizedOperationException}.
    * </p>
    *
    * @param id the ID of the user to retrieve
-   * @return an {@link Optional} containing the {@link LogisticsUser} if a user with the specified
-   *         ID exists and does not have the "ADMIN" role, or an empty {@link Optional} otherwise.
+   * @return a {@link UserResponseDto} containing the user's details if the user exists and does not
+   *         have the "ADMIN" role.
+   * @throws UnauthorizedOperationException if the user has the "ADMIN" role.
    */
   @CheckUserExistence // Check by ID is default behavior
   public UserResponseDto getUserById(Long id) {
@@ -147,11 +147,12 @@ public class LogisticsUserService implements UserDetailsService {
   }
 
   /**
-   * Updates the details of an existing user based on the provided ID and update request.
+   * Updates the details of an existing user, excluding users with the "ADMIN" role.
    *
    * @param id the ID of the user to be updated
-   * @param requestDto the {@link UserUpdateRequestDto} containing the new data for the user
+   * @param requestDto the {@link UserUpdateRequestDto} containing the updated data for the user
    * @return a {@link UserResponseDto} containing the updated user's details
+   * @throws UnauthorizedOperationException if the user has the "ADMIN" role.
    */
   @CheckUserExistence
   public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
@@ -172,12 +173,7 @@ public class LogisticsUserService implements UserDetailsService {
   /**
    * Deletes an existing user based on the provided id.
    *
-   * <p>The method throws a {@link UserNotFoundException} if the id provided is an admin user.
-   * Other exceptions are thrown for a user not existing and database-related exceptions for
-   * the global exception handler to process.</p>
-   *
    * @param id the id of the user to be deleted
-   * @throws UserNotFoundException if the provided id does not exist in the database
    * @throws UnauthorizedOperationException if the user is an admin
    */
   @CheckUserExistence
@@ -202,7 +198,6 @@ public class LogisticsUserService implements UserDetailsService {
    *
    * @param username the username of the user to load
    * @return the {@link UserDetails} containing user information for authentication
-   * @throws UsernameNotFoundException if no user with the specified username is found
    */
   @Override
   @CheckUserExistence(checkBy = "username")
