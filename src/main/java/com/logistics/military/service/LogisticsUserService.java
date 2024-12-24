@@ -200,9 +200,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @return the {@link UserDetails} containing user information for authentication
    */
   @Override
-  @CheckUserExistence(checkBy = "username")
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    return logisticsUserRepository.findByUsername(username).get();
+    return logisticsUserRepository.findByUsername(username)
+        .orElseThrow(() -> new UsernameNotFoundException("User is not valid"));
   }
 
   /**
