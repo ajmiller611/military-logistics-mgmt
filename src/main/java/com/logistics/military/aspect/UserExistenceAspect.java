@@ -55,7 +55,7 @@ public class UserExistenceAspect {
    *         determines either {@link UserAlreadyExistsException} or {@link UserNotFoundException}
    *         exception needs to be thrown.
    */
-  @Around("@annotation(checkUserExistence) && (args(userRequestDto) || args(id, ..))")
+  @Around("@annotation(checkUserExistence)")
   public Object validateUserExistence(
       ProceedingJoinPoint joinPoint,
       CheckUserExistence checkUserExistence
