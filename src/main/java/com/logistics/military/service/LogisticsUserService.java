@@ -59,29 +59,16 @@ public class LogisticsUserService implements UserDetailsService {
    * assigning a default role, and saving the user information to the database.
    *
    * <p>This method ensures secure handling of user data, including password encryption
-   * and role assignment. It validates that the user is new, checks required fields for
-   * null or empty values.
+   * and role assignment. It validates that the user is new.
    * </p>
    *
    * @param userRequestDto the {@link UserRequestDto} containing the user's registration data.
    * @return a {@link LogisticsUserDto} object containing the registered user's details.
-   * @throws IllegalArgumentException if required fields are empty or null.
    * @throws UserAlreadyExistsException if the username already exists in the database.
    * @throws IllegalStateException if the "USER" role is missing in the database.
    */
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
     logger.info("Create user request with DTO: {}",  userRequestDto);
-
-    // Validate user data for essential fields before processing.
-    if (userRequestDto.getUsername() == null || userRequestDto.getUsername().isEmpty()) {
-      throw new IllegalArgumentException("Username must not be empty.");
-    }
-    if (userRequestDto.getPassword() == null || userRequestDto.getPassword().isEmpty()) {
-      throw new IllegalArgumentException("Password must not be empty.");
-    }
-    if (userRequestDto.getEmail() == null || userRequestDto.getEmail().isEmpty()) {
-      throw new IllegalArgumentException("Email must not be empty.");
-    }
 
     // Check for an existing user in the database.
     if (logisticsUserRepository.findByUsername(userRequestDto.getUsername()).isPresent()) {
