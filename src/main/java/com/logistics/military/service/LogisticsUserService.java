@@ -7,7 +7,6 @@ import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.exception.UnauthorizedOperationException;
 import com.logistics.military.exception.UserAlreadyExistsException;
-import com.logistics.military.exception.UserCreationException;
 import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -70,7 +68,6 @@ public class LogisticsUserService implements UserDetailsService {
    * @throws IllegalArgumentException if required fields are empty or null.
    * @throws UserAlreadyExistsException if the username already exists in the database.
    * @throws IllegalStateException if the "USER" role is missing in the database.
-   * @throws RuntimeException if an unexpected error occurs during user creation.
    */
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
     logger.info("Create user request with DTO: {}",  userRequestDto);
@@ -108,14 +105,7 @@ public class LogisticsUserService implements UserDetailsService {
     user.setAuthorities(authorities);
 
     // Save the user in the database to generate userId.
-    try {
-      user = logisticsUserRepository.save(user);
-    } catch (DataAccessException e) {
-      throw new UserCreationException("An error occurred while saving the user to the database", e);
-    } catch (Exception e) {
-      throw new UserCreationException(
-          "An unexpected error occurred while saving the user to the database", e);
-    }
+    user = logisticsUserRepository.save(user);
 
     logger.info("LogisticsUser created: {}", user);
     return mapToUserDto(user);
