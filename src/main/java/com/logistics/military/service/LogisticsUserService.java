@@ -1,5 +1,6 @@
 package com.logistics.military.service;
 
+import com.logistics.military.annotation.CheckUserExistence;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
@@ -67,14 +68,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @throws UserAlreadyExistsException if the username already exists in the database.
    * @throws IllegalStateException if the "USER" role is missing in the database.
    */
+  @CheckUserExistence(checkBy = "username")
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
     logger.info("Create user request with DTO: {}",  userRequestDto);
-
-    // Check for an existing user in the database.
-    if (logisticsUserRepository.findByUsername(userRequestDto.getUsername()).isPresent()) {
-      throw new UserAlreadyExistsException("User with username " + userRequestDto.getUsername()
-                                           + " already exists.");
-    }
 
     // Prepare user for registration by setting required fields and encoding the password.
     LogisticsUser user = new LogisticsUser();
@@ -138,10 +134,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @return an {@link Optional} containing the {@link LogisticsUser} if a user with the specified
    *         ID exists and does not have the "ADMIN" role, or an empty {@link Optional} otherwise.
    */
+  @CheckUserExistence // Check by ID is default behavior
   public UserResponseDto getUserById(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "getUserById"));
+    LogisticsUser user = logisticsUserRepository.findById(id).get();
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -158,10 +153,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @param requestDto the {@link UserUpdateRequestDto} containing the new data for the user
    * @return a {@link UserResponseDto} containing the updated user's details
    */
+  @CheckUserExistence
   public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "updateUser"));
+    LogisticsUser user = logisticsUserRepository.findById(id).get();
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -186,10 +180,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @throws UserNotFoundException if the provided id does not exist in the database
    * @throws UnauthorizedOperationException if the user is an admin
    */
+  @CheckUserExistence
   public void deleteUser(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "deleteUser"));
+    LogisticsUser user = logisticsUserRepository.findById(id).get();
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -212,9 +205,9 @@ public class LogisticsUserService implements UserDetailsService {
    * @throws UsernameNotFoundException if no user with the specified username is found
    */
   @Override
+  @CheckUserExistence(checkBy = "username")
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    return logisticsUserRepository.findByUsername(username)
-        .orElseThrow(() -> new UsernameNotFoundException("User is not valid"));
+    return logisticsUserRepository.findByUsername(username).get();
   }
 
   /**
