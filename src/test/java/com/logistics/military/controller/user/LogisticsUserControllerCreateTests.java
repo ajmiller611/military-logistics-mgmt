@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.military.config.AppConfig;
 import com.logistics.military.config.SecurityConfig;
 import com.logistics.military.controller.LogisticsUserController;
@@ -23,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Set;
 import nl.altindag.log.LogCaptor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -77,6 +80,7 @@ class LogisticsUserControllerCreateTests {
 
   @InjectMocks private LogisticsUserController logisticsUserController;
   @Autowired private MockMvc mockMvc;
+  @Autowired private ObjectMapper objectMapper;
   @MockBean private LogisticsUserService logisticsUserService;
   @MockBean private TokenService tokenService;
   @MockBean private JwtAuthenticationConverter jwtAuthenticationConverter;
@@ -90,35 +94,42 @@ class LogisticsUserControllerCreateTests {
           fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
           ZoneId.systemDefault());
 
-  /**
-   * Test that the /users endpoint will log a received request and its response.
-   */
-  @Test
-  void givenRequestReceivedWhenRegisterUserThenLogRequestAndResponse() throws Exception {
-    // Create a test user
+  UserRequestDto requestDto;
+  String validJson;
+  LogisticsUserDto testUser;
+
+  /** Sets up test data for use in each test */
+  @BeforeEach
+  void setUp() throws JsonProcessingException {
+    requestDto = new UserRequestDto(
+        "testUser",
+        "password",
+        "test@example.com"
+    );
+    validJson = objectMapper.writeValueAsString(requestDto);
+
     Role userRole = new Role("USER");
-    LogisticsUserDto testUser = new LogisticsUserDto(
+    testUser = new LogisticsUserDto(
         2L,
         "testUser",
         "test@example.com",
         fixedTimestamp,
         Set.of(userRole)
     );
+  }
+
+  /**
+   * Test that the /users endpoint will log a received request and its response.
+   */
+  @Test
+  void givenRequestReceivedWhenRegisterUserThenLogRequestAndResponse() throws Exception {
     when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
 
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      String json = """
-          {
-            "username": "testUser",
-            "password": "password",
-            "email": "test@example.com"
-          }
-          """;
-
       // Mock the post request to /users
       mockMvc.perform(post("/users")
               .contentType(MediaType.APPLICATION_JSON)
-              .content(json))
+              .content(validJson))
           .andExpect(status().isCreated());
 
       // Verify the log entry of received request
@@ -147,29 +158,12 @@ class LogisticsUserControllerCreateTests {
     // Set up the clock to return the fixed timestamp
     when(clock.instant()).thenReturn(fixedClock.instant());
     when(clock.getZone()).thenReturn(fixedClock.getZone());
-
-    Role userRole = new Role("USER");
-    LogisticsUserDto testUser = new LogisticsUserDto(
-        2L,
-        "testUser",
-        "test@example.com",
-        fixedTimestamp,
-        Set.of(userRole)
-    );
     when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
-
-    String json = """
-        {
-          "username": "testUser",
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
 
     // Mock the post request to /users and verify the response
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(validJson))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
         .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
@@ -177,18 +171,13 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.email").value(testUser.getEmail()));
 
     // Test valid special characters in email
+    requestDto.setEmail("te.st-User_name+@ex-am..pl.e2.com");
     testUser.setEmail("te.st-User_name+@ex-am..pl.e2.com");
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "te.st-User_name+@ex-am..pl.e2.com"
-      }
-      """;
+    String validSpecialCharacterEmailJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(validSpecialCharacterEmailJson))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
         .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
@@ -227,17 +216,12 @@ class LogisticsUserControllerCreateTests {
   @Test
   void givenInvalidUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test null username
-    String json = """
-        {
-          "username": null,
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
+    requestDto.setUsername(null);
+    String nullUsernameJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(nullUsernameJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -245,17 +229,12 @@ class LogisticsUserControllerCreateTests {
             .value("Username is required"));
 
     // Test empty username
-    json = """
-      {
-        "username": "",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
+    requestDto.setUsername("");
+    String emptyUsernameJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(emptyUsernameJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -263,17 +242,12 @@ class LogisticsUserControllerCreateTests {
             .value("Username is required"));
 
     // Test username is too short
-    json = """
-      {
-        "username": "t",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
+    requestDto.setUsername("t");
+    String shortUsernameJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(shortUsernameJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -281,17 +255,12 @@ class LogisticsUserControllerCreateTests {
             .value("Username must be between 3 and 20 characters"));
 
     // Test username is too long
-    json = """
-      {
-        "username": "testUsernameIsTooLong",
-        "password": "password",
-        "email": "test@example.com"
-      }
-      """;
+    requestDto.setUsername("testUsernameIsTooLong");
+    String tooLongUsernameJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(tooLongUsernameJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -306,17 +275,12 @@ class LogisticsUserControllerCreateTests {
   @Test
   void givenInvalidPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test password is null
-    String json = """
-        {
-          "username": "testUser",
-          "password": null,
-          "email": "test@example.com"
-        }
-        """;
+    requestDto.setPassword(null);
+    String nullPasswordJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(nullPasswordJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -324,17 +288,12 @@ class LogisticsUserControllerCreateTests {
             .value("Password is required"));
 
     // Test password is empty
-    json = """
-      {
-        "username": "testUser",
-        "password": "",
-        "email": "test@example.com"
-      }
-      """;
+    requestDto.setPassword("");
+    String emptyPasswordJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(emptyPasswordJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -342,17 +301,12 @@ class LogisticsUserControllerCreateTests {
             .value("Password is required"));
 
     // Test password is too short
-    json = """
-      {
-        "username": "testUser",
-        "password": "pass",
-        "email": "test@example.com"
-      }
-      """;
+    requestDto.setPassword("pass");
+    String tooShortPasswordJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(tooShortPasswordJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -367,17 +321,12 @@ class LogisticsUserControllerCreateTests {
   @Test
   void givenInvalidEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email with null value
-    String json = """
-        {
-          "username": "testUser",
-          "password": "password",
-          "email": null
-        }
-        """;
+    requestDto.setEmail(null);
+    String nullEmailJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(nullEmailJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -386,17 +335,12 @@ class LogisticsUserControllerCreateTests {
 
 
     // Test email is empty
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": ""
-      }
-      """;
+    requestDto.setEmail("");
+    String emptyEmailJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(emptyEmailJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -404,17 +348,12 @@ class LogisticsUserControllerCreateTests {
             .value("Email is required"));
 
     // Test email missing @ symbol
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "testexample.com"
-      }
-      """;
+    requestDto.setEmail("testexample.com");
+    String missingAtSymbolJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(missingAtSymbolJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -422,17 +361,12 @@ class LogisticsUserControllerCreateTests {
             .value("Email invalid. Missing '@' symbol"));
 
     // Test username of email is invalid
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test!@example.com"
-      }
-      """;
+    requestDto.setEmail("test!@example.com");
+    String invalidJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(invalidJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -441,17 +375,12 @@ class LogisticsUserControllerCreateTests {
                 + " Only letters, digits, '+', '_', '.', and '-' are valid."));
 
     // Test email missing period for domain extension
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example"
-      }
-      """;
+    requestDto.setEmail("test@example");
+    String missingPeriodForDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(missingPeriodForDomainExtensionJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -459,17 +388,12 @@ class LogisticsUserControllerCreateTests {
             .value("Domain extension is missing (no period)."));
 
     // Test email missing domain extension
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example."
-      }
-      """;
+    requestDto.setEmail("test@example.");
+    String missingDomainExtension = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(missingDomainExtension))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -477,17 +401,12 @@ class LogisticsUserControllerCreateTests {
             .value("Domain extension is missing."));
 
     // Test domain part of email is invalid with invalid character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@exam*ple.com"
-      }
-      """;
+    requestDto.setEmail("test@exam*ple.com");
+    String invalidDomainJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(invalidDomainJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -496,17 +415,12 @@ class LogisticsUserControllerCreateTests {
                 + " Only letters, digits, '.', and '-' are valid."));
 
     // Test domain part of email
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@ex.am.p*le.com"
-      }
-      """;
+    requestDto.setEmail("test@ex.am.p*le.com");
+    String invalidDomainWhenMultiplePeriodsJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(invalidDomainWhenMultiplePeriodsJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -515,17 +429,12 @@ class LogisticsUserControllerCreateTests {
                 + " Only letters, digits, '.', and '-' are valid."));
 
     // Test top-level domain is invalid with one character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example.c"
-      }
-      """;
+    requestDto.setEmail("test@example.c");
+    String oneCharacterDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(oneCharacterDomainExtensionJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -534,17 +443,12 @@ class LogisticsUserControllerCreateTests {
                 + " Only letters are valid and must be at least 2 characters."));
 
     // Test top-level domain is invalid with invalid character
-    json = """
-      {
-        "username": "testUser",
-        "password": "password",
-        "email": "test@example.co*m"
-      }
-      """;
+    requestDto.setEmail("test@example.co*m");
+    String invalidDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/users")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(invalidDomainExtensionJson))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
