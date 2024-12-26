@@ -56,11 +56,6 @@ public class LogisticsUserController {
    * user’s information and the location of the new user resource.
    * </p>
    *
-   * <p>The response status is {@code 201 Created} with a `Location` header pointing to the endpoint
-   * where the new user's details can be retrieved. The response body includes
-   * a {@link UserResponseDto} containing the user's ID, username, email, and creation timestamp.
-   * </p>
-   *
    * @param body the {@link UserRequestDto} containing the user's registration data
    * @return a {@link ResponseEntity} containing the newly created {@link UserResponseDto}
    *     with a `Location` header for the created resource
@@ -69,7 +64,7 @@ public class LogisticsUserController {
   public ResponseEntity<UserResponseDto> registerUser(@Valid @RequestBody UserRequestDto body) {
     logger.info("Endpoint /users received POST request: {}", body);
 
-    // Delegate user creation to the authentication service
+    // Delegate user creation to the user service
     LogisticsUserDto userDto = logisticsUserService.createAndSaveUser(body);
 
     // Build the URI location of the newly created user resource
