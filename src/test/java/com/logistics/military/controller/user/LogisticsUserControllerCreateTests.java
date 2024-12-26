@@ -118,9 +118,7 @@ class LogisticsUserControllerCreateTests {
     );
   }
 
-  /**
-   * Test that the /users endpoint will log a received request and its response.
-   */
+  /** Verify a valid request logs the request and the created user. */
   @Test
   void givenRequestReceivedWhenRegisterUserThenLogRequestAndResponse() throws Exception {
     when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
@@ -146,12 +144,15 @@ class LogisticsUserControllerCreateTests {
                   && log.contains(testUser.getUserId().toString())
                   && log.contains(testUser.getUsername())
                   && log.contains(testUser.getEmail()));
+
+      //Verify the log entries do not contain the user's password
+      assertThat(logCaptor.getInfoLogs()).doesNotContain(requestDto.getPassword());
     }
   }
 
   /**
-   * Test that the /users endpoint will respond with a status of 201 Created,
-   * the location of the created user, and the created user's details.
+   * Verify a valid request will respond with a status created (201), the URI of the created user,
+   * and the created user's details.
    */
   @Test
   void givenValidUserDetailsWhenRegisterUserThenReturnCreatedResponse() throws Exception {
@@ -169,6 +170,14 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
         .andExpect(jsonPath("$.username").value(testUser.getUsername()))
         .andExpect(jsonPath("$.email").value(testUser.getEmail()));
+  }
+
+  /** Verify an email with valid special characters responds with a status created (201). */
+  @Test
+  void givenValidSpecialCharacterEmailWhenRegisterUserThenReturnCreatedResponse() throws Exception {
+    when(clock.instant()).thenReturn(fixedClock.instant());
+    when(clock.getZone()).thenReturn(fixedClock.getZone());
+    when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
 
     // Test valid special characters in email
     requestDto.setEmail("te.st-User_name+@ex-am..pl.e2.com");
@@ -185,10 +194,7 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.email").value(testUser.getEmail()));
   }
 
-  /**
-   * Test the /users endpoint will respond with 400 Bad Request
-   * when an unknown field is present in the request.
-   */
+  /** Verify a request with an unknown field response with bad request (400). */
   @Test
   void givenUnknownFieldWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test an unknown field of userId exists
@@ -209,12 +215,9 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Unrecognized field named 'userId'."));
   }
 
-  /**
-   * Test the /users endpoint will respond with 400 Bad Request when the username field
-   * has different types of invalid values.
-   */
+  /** Verify a null username request receives a bad request (400) response. */
   @Test
-  void givenInvalidUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
+  void givenNullUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test null username
     requestDto.setUsername(null);
     String nullUsernameJson = objectMapper.writeValueAsString(requestDto);
@@ -227,7 +230,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.username")
             .value("Username is required"));
+  }
 
+  /** Verify an empty username request receives a bad request (400) response. */
+  @Test
+  void givenEmptyUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test empty username
     requestDto.setUsername("");
     String emptyUsernameJson = objectMapper.writeValueAsString(requestDto);
@@ -240,7 +247,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.username")
             .value("Username is required"));
+  }
 
+  /** Verify a too short username request receives a bad request (400) response. */
+  @Test
+  void givenTooShortUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test username is too short
     requestDto.setUsername("t");
     String shortUsernameJson = objectMapper.writeValueAsString(requestDto);
@@ -253,7 +264,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.username")
             .value("Username must be between 3 and 20 characters"));
+  }
 
+  /** Verify a too long username request receives a bad request (400) response. */
+  @Test
+  void givenTooLongUsernameWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test username is too long
     requestDto.setUsername("testUsernameIsTooLong");
     String tooLongUsernameJson = objectMapper.writeValueAsString(requestDto);
@@ -268,12 +283,9 @@ class LogisticsUserControllerCreateTests {
             .value("Username must be between 3 and 20 characters"));
   }
 
-  /**
-   * Test the /users endpoint will respond with 400 Bad Request when the password field
-   * has different types of invalid values.
-   */
+  /** Verify a null password request receives a bad request (400) response. */
   @Test
-  void givenInvalidPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
+  void givenNullPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test password is null
     requestDto.setPassword(null);
     String nullPasswordJson = objectMapper.writeValueAsString(requestDto);
@@ -286,7 +298,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.password")
             .value("Password is required"));
+  }
 
+  /** Verify an empty password request receives a bad request (400) response. */
+  @Test
+  void givenEmptyPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test password is empty
     requestDto.setPassword("");
     String emptyPasswordJson = objectMapper.writeValueAsString(requestDto);
@@ -299,7 +315,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.password")
             .value("Password is required"));
+  }
 
+  /** Verify a too short password request receives a bad request (400) response. */
+  @Test
+  void givenTooShortPasswordWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test password is too short
     requestDto.setPassword("pass");
     String tooShortPasswordJson = objectMapper.writeValueAsString(requestDto);
@@ -314,12 +334,9 @@ class LogisticsUserControllerCreateTests {
             .value("Password must be at least 8 characters"));
   }
 
-  /**
-   * Test the /users endpoint will respond with 400 Bad Request when the email field
-   * has different types of invalid values.
-   */
+  /** Verify a null email request receives a bad request (400) response. */
   @Test
-  void givenInvalidEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
+  void givenNullEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email with null value
     requestDto.setEmail(null);
     String nullEmailJson = objectMapper.writeValueAsString(requestDto);
@@ -332,8 +349,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.email")
             .value("Email is required"));
+  }
 
-
+  /** Verify an empty email request receives a bad request (400) response. */
+  @Test
+  void givenEmptyEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email is empty
     requestDto.setEmail("");
     String emptyEmailJson = objectMapper.writeValueAsString(requestDto);
@@ -346,7 +366,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.email")
             .value("Email is required"));
+  }
 
+  /** Verify a request with email missing the '@' symbol receives a bad request (400) response. */
+  @Test
+  void givenEmailMissingAtSymbolWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email missing @ symbol
     requestDto.setEmail("testexample.com");
     String missingAtSymbolJson = objectMapper.writeValueAsString(requestDto);
@@ -359,7 +383,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.email")
             .value("Email invalid. Missing '@' symbol"));
+  }
 
+  /** Verify a request with invalid username of email receives a bad request (400) response. */
+  @Test
+  void givenInvalidUsernameOfEmailWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test username of email is invalid
     requestDto.setEmail("test!@example.com");
     String invalidJson = objectMapper.writeValueAsString(requestDto);
@@ -373,7 +401,14 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.data.email")
             .value("Username of Email is invalid."
                 + " Only letters, digits, '+', '_', '.', and '-' are valid."));
+  }
 
+  /**
+   *  Verify a request with missing period for domain extension receives a bad request (400)
+   *  response.
+   */
+  @Test
+  void givenMissingPeriodForDomainExtensionWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email missing period for domain extension
     requestDto.setEmail("test@example");
     String missingPeriodForDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
@@ -386,7 +421,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.email")
             .value("Domain extension is missing (no period)."));
+  }
 
+  /** Verify a request with missing domain extension receives a bad request (400) response. */
+  @Test
+  void givenMissingDomainExtensionWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test email missing domain extension
     requestDto.setEmail("test@example.");
     String missingDomainExtension = objectMapper.writeValueAsString(requestDto);
@@ -399,7 +438,11 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.message").value("Validation failed"))
         .andExpect(jsonPath("$.data.email")
             .value("Domain extension is missing."));
+  }
 
+  /** Verify a request with domain with invalid character receives a bad request (400) response. */
+  @Test
+  void givenDomainHasInvalidCharacterWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test domain part of email is invalid with invalid character
     requestDto.setEmail("test@exam*ple.com");
     String invalidDomainJson = objectMapper.writeValueAsString(requestDto);
@@ -413,7 +456,15 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.data.email")
             .value("Domain of Email is invalid."
                 + " Only letters, digits, '.', and '-' are valid."));
+  }
 
+  /**
+   * Verify a request with domain with invalid character when multiple valid periods present
+   * receives a bad request (400) response.
+   */
+  @Test
+  void givenInvalidDomainCharacterWhenMultipleValidPeriodsWhenRegisterUserThenReturnBadRequest()
+      throws Exception {
     // Test domain part of email
     requestDto.setEmail("test@ex.am.p*le.com");
     String invalidDomainWhenMultiplePeriodsJson = objectMapper.writeValueAsString(requestDto);
@@ -427,7 +478,13 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.data.email")
             .value("Domain of Email is invalid."
                 + " Only letters, digits, '.', and '-' are valid."));
+  }
 
+  /**
+   * Verify a request with invalid domain extension length receives a bad request (400) response.
+   */
+  @Test
+  void givenInvalidDomainExtensionLengthWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test top-level domain is invalid with one character
     requestDto.setEmail("test@example.c");
     String oneCharacterDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
@@ -441,7 +498,14 @@ class LogisticsUserControllerCreateTests {
         .andExpect(jsonPath("$.data.email")
             .value("Domain extension is invalid."
                 + " Only letters are valid and must be at least 2 characters."));
+  }
 
+  /**
+   * Verify a request with domain extension with invalid character receives
+   * a bad request (400) response.
+   */
+  @Test
+  void givenInvalidDomainExtensionWhenRegisterUserThenReturnBadRequest() throws Exception {
     // Test top-level domain is invalid with invalid character
     requestDto.setEmail("test@example.co*m");
     String invalidDomainExtensionJson = objectMapper.writeValueAsString(requestDto);
