@@ -5,9 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -115,21 +113,14 @@ class LogisticsUserServiceReadTests {
     assertEquals(user.getEmail(), responseDto.getEmail());
   }
 
-  /** Verifies if an admin role does not exist then a {@link RoleNotFoundException} is thrown. */
+  /** Verify an {@link RoleNotFoundException} is thrown when the 'ADMIN' role does not exist. */
   @Test
-  void givenNonExistentAdminRoleWhenGetUsersThenThrowRoleNotFoundException() {
-    when(roleRepository.findByAuthority("ADMIN")).thenReturn(Optional.of(adminRole));
-    when(roleRepository.findByAuthority("ADMIN"))
-        .thenThrow(new RoleNotFoundException("Role 'ADMIN' not found"));
+  void givenRoleNotFoundWhenGetUsersThenThrowRoleNotFoundException() {
+    when(roleRepository.findByAuthority("ADMIN")).thenReturn(Optional.empty());
 
-    RoleNotFoundException exception = assertThrows(RoleNotFoundException.class,
-        () -> logisticsUserService.getUsers(0, 10));
-
-    verify(roleRepository, times(1)).findByAuthority("ADMIN");
-    verify(logisticsUserRepository, never())
-        .findAllWithoutRole(any(Pageable.class), any(Role.class));
-    assertNotNull(exception);
-    assertEquals("Role 'ADMIN' not found", exception.getMessage());
+    assertThrows(RoleNotFoundException.class,
+        () -> logisticsUserService.getUsers(0, 10),
+        "Expected getUsers to throw a RoleNotFoundException for role not found");
   }
 
   /**

@@ -79,7 +79,7 @@ public class LogisticsUserService implements UserDetailsService {
 
     // Attempt to retrieve and assign the default role. Throws an error if the role is unavailable.
     Role userRole = roleRepository.findByAuthority("USER")
-        .orElseThrow(() -> new IllegalStateException("USER role not found"));
+        .orElseThrow(() -> new RoleNotFoundException("Role 'USER' not found"));
 
     Set<Role> authorities = new HashSet<>();
     authorities.add(userRole);
@@ -107,8 +107,8 @@ public class LogisticsUserService implements UserDetailsService {
   public Page<UserResponseDto> getUsers(int page, int size) {
     // Set the paging restrictions for the pageable object
     Pageable pageable = PageRequest.of(page, size);
-    Role adminRole = roleRepository.findByAuthority(ROLE_NAME_ADMIN).orElseThrow(
-        () -> new RoleNotFoundException("Role 'ADMIN' not found"));
+    Role adminRole = roleRepository.findByAuthority(ROLE_NAME_ADMIN)
+        .orElseThrow(() -> new RoleNotFoundException("Role 'ADMIN' not found"));
     Page<LogisticsUser> usersPage =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 

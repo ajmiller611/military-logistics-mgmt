@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
+import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -55,7 +56,7 @@ import org.springframework.test.context.ActiveProfiles;
  *   <li>
  *     <strong>Role Validation:</strong> Validates that a {@link Role} must exist for a user to
  *     be created. Tests for proper handling of missing roles, including throwing an
- *     {@link IllegalStateException}.
+ *     {@link RoleNotFoundException}.
  *   </li>
  *   <li>
  *     <strong>User Authentication:</strong> Confirms that {@code loadUserByUsername} returns
@@ -153,14 +154,14 @@ class LogisticsUserServiceCreateTests {
     }
   }
 
-  /** Verify an {@link IllegalStateException} is thrown when the 'USER' role does not exist. */
+  /** Verify an {@link RoleNotFoundException} is thrown when the 'USER' role does not exist. */
   @Test
-  void givenRoleNotFoundWhenCreateAndSaveUserThenThrowIllegalStateException() {
+  void givenRoleNotFoundWhenCreateAndSaveUserThenThrowRoleNotFoundException() {
     when(clock.instant()).thenReturn(fixedClock.instant());
     when(clock.getZone()).thenReturn(fixedClock.getZone());
     when(roleRepository.findByAuthority("USER")).thenReturn(Optional.empty());
 
-    assertThrows(IllegalStateException.class,
+    assertThrows(RoleNotFoundException.class,
         () -> logisticsUserService.createAndSaveUser(userRequestDto),
         "Expected createAndSaveUser to throw an exception for role not found");
   }
