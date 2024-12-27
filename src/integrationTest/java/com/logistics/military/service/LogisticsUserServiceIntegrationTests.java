@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.logistics.military.dto.UserRequestDto;
+import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
 import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
@@ -39,7 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>
  *     <strong>Aspect Interception for Nonexistent Users:</strong> Confirms that the
  *     {@code @CheckUserExistence} aspect intercepts the call to {@code getUserById()} and
- *     throws a {@link UserNotFoundException} when attempting to retrieve a nonexistent user.
+ *     {@code updateUser()} throws a {@link UserNotFoundException} when attempting to retrieve
+ *     a nonexistent user.
  *   </li>
  *   <li>
  *     <strong>Exception Propagation:</strong> Ensures that the exception thrown by the aspect is
@@ -113,6 +115,23 @@ class LogisticsUserServiceIntegrationTests {
     Long nonExistentId = 2L;
     assertThrows(UserNotFoundException.class,
         () -> logisticsUserService.getUserById(nonExistentId),
-        "Expected getUserById to throw aUserNotFoundException for a nonexistent user");
+        "Expected getUserById to throw a UserNotFoundException for a nonexistent user");
+  }
+
+  /**
+   * Verify the {@code @CheckUserExistence} aspect intercepts the call to
+   * {@code updateUser()} and throws a {@link UserNotFoundException} when a user is nonexistent.
+   * The exception is propagated to {@code updateUser()} which satisfies the test.
+   */
+  @Test
+  void givenNonExistentUserWhenUpdateUserThenThrowUserNotFoundException() {
+    Long nonExistentId = 2L;
+    UserUpdateRequestDto updateRequestDto = new UserUpdateRequestDto(
+        "updatedUsername",
+        "updatedEmail@example.com"
+    );
+    assertThrows(UserNotFoundException.class,
+        () -> logisticsUserService.updateUser(nonExistentId, updateRequestDto),
+        "Expected updateUser to throw a UserNotFoundException for a nonexistent user");
   }
 }
