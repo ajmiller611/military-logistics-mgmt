@@ -39,9 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   </li>
  *   <li>
  *     <strong>Aspect Interception for Nonexistent Users:</strong> Confirms that the
- *     {@code @CheckUserExistence} aspect intercepts the call to {@code getUserById()} and
- *     {@code updateUser()} throws a {@link UserNotFoundException} when attempting to retrieve
- *     a nonexistent user.
+ *     {@code @CheckUserExistence} aspect intercepts the call to {@code getUserById()},
+ *     {@code updateUser()}, and {@code deleteUser()} throws a {@link UserNotFoundException}
+ *     when attempting to retrieve a nonexistent user.
  *   </li>
  *   <li>
  *     <strong>Exception Propagation:</strong> Ensures that the exception thrown by the aspect is
@@ -133,5 +133,18 @@ class LogisticsUserServiceIntegrationTests {
     assertThrows(UserNotFoundException.class,
         () -> logisticsUserService.updateUser(nonExistentId, updateRequestDto),
         "Expected updateUser to throw a UserNotFoundException for a nonexistent user");
+  }
+
+  /**
+   * Verify the {@code @CheckUserExistence} aspect intercepts the call to
+   * {@code deleteUser()} and throws a {@link UserNotFoundException} when a user is nonexistent.
+   * The exception is propagated to {@code deleteUser()} which satisfies the test.
+   */
+  @Test
+  void givenNonExistentUserWhenDeleteUserThenThrowUserNotFoundException() {
+    Long nonExistentId = 2L;
+    assertThrows(UserNotFoundException.class,
+        () -> logisticsUserService.deleteUser(nonExistentId),
+        "Expected deleteUser to throw a UserNotFoundException for a nonexistent user");
   }
 }

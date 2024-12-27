@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.logistics.military.exception.UnauthorizedOperationException;
-import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -41,11 +40,6 @@ import org.springframework.test.context.ActiveProfiles;
  *   <li>
  *     <strong>Successful User Deletion:</strong> Verifies that a valid user ID successfully deletes
  *     the corresponding user and interacts with the repository as expected.
- *   </li>
- *   <li>
- *     <strong>Handling Non-Existent Users:</strong> Ensures that attempting to delete a user with
- *     an ID that does not exist results in a {@link UserNotFoundException}, with appropriate error
- *     messages and no deletion operation.
  *   </li>
  *   <li>
  *     <strong>Protection Against Unauthorized Operations:</strong> Confirms that attempting to
@@ -97,22 +91,6 @@ class LogisticsUserServiceDeleteTests {
 
     verify(logisticsUserRepository, times(1)).findById(VALID_USER_ID);
     verify(logisticsUserRepository, times(1)).deleteById(VALID_USER_ID);
-  }
-
-  /**
-   * Verifies that non-existing user throws a {@link UserNotFoundException}.
-   */
-  @Test
-  void givenNonExistingUserWhenDeleteUserThenThrowUserNotFoundException() {
-    Long nonExistingUserId = 3L;
-    when(logisticsUserRepository.findById(nonExistingUserId)).thenReturn(Optional.empty());
-
-    UserNotFoundException exception = assertThrows(UserNotFoundException.class, () ->
-        logisticsUserService.deleteUser(nonExistingUserId));
-
-    assertNotNull(exception);
-    assertEquals("User with id 3 does not exist", exception.getMessage());
-    verify(logisticsUserRepository, never()).deleteById(any(Long.class));
   }
 
   /**
