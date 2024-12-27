@@ -79,7 +79,7 @@ public class TokenService {
    */
   public String generateAccessToken(Authentication auth) {
     Instant now = Instant.now();
-    Instant expirationTime =  now.plus(1, ChronoUnit.HOURS);
+    Instant expirationTime =  now.plus(15, ChronoUnit.MINUTES);
 
     // Collecting all authorities (roles) granted to the user into a single string
     String scope = auth.getAuthorities().stream()
