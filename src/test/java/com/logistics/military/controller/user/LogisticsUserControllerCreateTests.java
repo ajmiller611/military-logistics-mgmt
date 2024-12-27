@@ -98,7 +98,7 @@ class LogisticsUserControllerCreateTests {
   String validJson;
   LogisticsUserDto testUser;
 
-  /** Sets up test data for use in each test */
+  /** Sets up test data for use in each test. */
   @BeforeEach
   void setUp() throws JsonProcessingException {
     requestDto = new UserRequestDto(
