@@ -112,7 +112,7 @@ class TokenServiceTests {
     assertEquals("USER", claims.get("roles"));
 
     Instant now = Instant.now();
-    Instant expirationTime = now.plus(1, ChronoUnit.HOURS);
+    Instant expirationTime = now.plus(15, ChronoUnit.MINUTES);
     Instant expiresAt = (Instant) claims.get("exp");
     assertNotNull(expiresAt, "Expiration claim should be present");
     /*
@@ -120,7 +120,7 @@ class TokenServiceTests {
      * the claim's expiresAt fits in the range of an hour.
      */
     assertTrue(expiresAt.isBefore(expirationTime) && expiresAt.isAfter(now),
-        "Token expiration time should be within 1 hour from now");
+        "Token expiration time should be within 15 minutes from now");
   }
 
   /**
@@ -160,11 +160,11 @@ class TokenServiceTests {
     assertEquals("self", accessTokenClaims.get("iss"));
     assertEquals("USER", accessTokenClaims.get("roles"));
     Instant now = Instant.now();
-    Instant expirationTime = now.plus(1, ChronoUnit.HOURS);
+    Instant expirationTime = now.plus(15, ChronoUnit.MINUTES);
     Instant expiresAt = (Instant) accessTokenClaims.get("exp");
     assertNotNull(expiresAt, "Expiration claim should be present");
     assertTrue(expiresAt.isBefore(expirationTime) && expiresAt.isAfter(now),
-        "Token expiration time should be within 1 hour from now");
+        "Token expiration time should be within 15 minutes from now");
 
     Map<String, Object> refreshTokenClaims = tokenService.decodeJwt(tokens.get("refreshToken"));
     assertNotNull(refreshTokenClaims);

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -137,8 +139,8 @@ class AuthenticationControllerTests {
   }
 
   /**
-   * Test that the /auth/login endpoint will respond with 200 Ok, access and refresh tokens
-   * in the form of cookies, and the user's details.
+   * Test that the /auth/login endpoint will respond with 200 Ok, access token in Authorization
+   * header and refresh token in the form of an HTTP-Only cookie, and the user's details.
    */
   @Test
   void givenValidCredentialsWhenLoginUserThenReturnTokenCookiesAndUserDetails() throws Exception {
@@ -171,7 +173,7 @@ class AuthenticationControllerTests {
             .contentType(MediaType.APPLICATION_JSON)
             .content(json))
         .andExpect(status().isOk())
-        .andExpect(cookie().value("access_token", "access_token_value"))
+        .andExpect(header().string(HttpHeaders.AUTHORIZATION, "Bearer access_token_value"))
         .andExpect(cookie().value("refresh_token", "refresh_token_value"))
         .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
         .andExpect(jsonPath("$.username").value(testUser.getUsername()))
@@ -219,8 +221,8 @@ class AuthenticationControllerTests {
   }
 
   /**
-   * Test that the /auth/refresh-token endpoint respond with 200 Ok and access and refresh tokens
-   * in the form of cookies.
+   * Test that the /auth/refresh-token endpoint respond with 200 Ok with the access token in the
+   * Authorization header and refresh token in the form of an HTTP-Only cookie.
    */
   @Test
   void givenValidRefreshTokenWhenRefreshTokenThenReturnOkResponse() throws Exception {
@@ -244,13 +246,10 @@ class AuthenticationControllerTests {
     mockMvc.perform(post("/auth/refresh-token")
         .cookie(validRefreshTokenCookie))
         .andExpect(status().isOk())
-        .andExpect(cookie().value("access_token", "newAccessToken"))
+        .andExpect(header().string(HttpHeaders.AUTHORIZATION, "Bearer newAccessToken"))
         .andExpect(cookie().value("refresh_token", "newRefreshToken"))
-        .andExpect(cookie().httpOnly("access_token", true))
         .andExpect(cookie().httpOnly("refresh_token", true))
-        .andExpect(cookie().secure("access_token", true))
         .andExpect(cookie().secure("refresh_token", true))
-        .andExpect(cookie().maxAge("access_token", 15 * 60))
         .andExpect(cookie().maxAge("refresh_token", 7 * 24 * 60 * 60));
   }
 
