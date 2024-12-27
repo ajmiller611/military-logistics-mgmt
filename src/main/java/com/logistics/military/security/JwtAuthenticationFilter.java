@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -52,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   ) throws ServletException, IOException {
 
     // Extract the Authorization header from the incoming request.
-    String authorizationHeader = request.getHeader("Authorization");
+    String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
     /*
      * Check if the Authorization header is missing, does not start with "Bearer ",

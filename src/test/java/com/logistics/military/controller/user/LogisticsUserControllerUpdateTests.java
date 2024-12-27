@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,7 +117,6 @@ class LogisticsUserControllerUpdateTests {
 
 
     mockMvc.perform(put("/users/2")
-            .with(csrf()) // Spring Security enforces CSRF protection for PUT requests.
             .contentType(MediaType.APPLICATION_JSON)
             .content(validJson))
         .andExpect(status().isOk())
@@ -136,7 +134,6 @@ class LogisticsUserControllerUpdateTests {
   void givenValidUpdateRequestWhenUpdateUserThenLogsRequestProperly() throws Exception {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
       mockMvc.perform(put("/users/2")
-              .with(csrf())
               .contentType(MediaType.APPLICATION_JSON)
               .content(validJson))
           .andExpect(status().isOk());
@@ -157,7 +154,6 @@ class LogisticsUserControllerUpdateTests {
     String invalidUsernameJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(put("/users/2")
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidUsernameJson))
         .andExpect(status().isBadRequest())

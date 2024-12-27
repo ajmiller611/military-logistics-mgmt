@@ -6,7 +6,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -86,8 +85,7 @@ class LogisticsUserControllerDeleteTests {
       Long validUserId = 2L;
       doNothing().when(logisticsUserService).deleteUser(validUserId);
 
-      mockMvc.perform(delete("/users/2")
-              .with(csrf())) // Spring Security enforces CSRF protection for DELETE requests.
+      mockMvc.perform(delete("/users/2"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.status").value("success"))
           .andExpect(jsonPath("$.message").value("User deleted successfully"));
@@ -106,8 +104,7 @@ class LogisticsUserControllerDeleteTests {
   @WithMockUser
   void givenInvalidUserIdWhenDeleteUserThenReturnBadRequest() throws Exception {
     Long invalidUserId = -1L;
-    mockMvc.perform(delete("/users/-1")
-            .with(csrf()))
+    mockMvc.perform(delete("/users/-1"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -119,8 +116,7 @@ class LogisticsUserControllerDeleteTests {
     verify(logisticsUserService, never()).deleteUser(invalidUserId);
 
     invalidUserId = 0L;
-    mockMvc.perform(delete("/users/0")
-            .with(csrf()))
+    mockMvc.perform(delete("/users/0"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("Validation failed"))
@@ -142,8 +138,7 @@ class LogisticsUserControllerDeleteTests {
     doThrow(new UserNotFoundException("User with id 3 does not exist", "deleteUser"))
         .when(logisticsUserService).deleteUser(nonExistentUserId);
 
-    mockMvc.perform(delete("/users/3")
-            .with(csrf()))
+    mockMvc.perform(delete("/users/3"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.status").value("error"))
         .andExpect(jsonPath("$.message").value("User with id 3 does not exist"));

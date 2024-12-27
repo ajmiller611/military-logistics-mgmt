@@ -10,6 +10,7 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,9 +28,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * and role-based access control for various endpoints in the application.</p>
  *
  * <p>The security configuration ensures that certain endpoints are publicly accessible
- * (e.g., "/auth/**"), while others require specific roles (e.g., "/admin/**" requires the
- * "ADMIN" role). All other requests are secured and require authentication. Security is enforced
- * for the entire application, with access control applied based on user roles.</p>
+ * (e.g., "/auth/**", POST requests to "/users" and "/users/"), while others require specific roles
+ * (e.g., "/admin/**" requires the "ADMIN" role). All other requests are secured and require
+ * authentication. Security is enforced for the entire application, with access control applied
+ * based on user roles.</p>
  *
  * <p>Session management is configured to be stateless, suitable for REST APIs using JWT tokens
  * for authentication. The JWT tokens are signed using an RSA key pair and validated with the
@@ -87,9 +89,10 @@ public class SecurityConfig {
    * Configures the security filter chain to define how HTTP requests are authorized.
    *
    * <p>This method sets up rules for authorizing HTTP requests, such as which endpoints are
-   * publicly accessible (e.g., "/auth/**"), which require specific roles (e.g., "/admin/**"
-   * requires "ADMIN" role), and which require authentication. It also configures session management
-   * to be stateless, since the REST API uses JWT for stateless authentication.
+   * publicly accessible (e.g., "/auth/**", "/users", "/users/"), which require specific roles
+   * (e.g., "/admin/**" requires "ADMIN" role), and which require authentication. It also disables
+   * CSRF and configures session management to be stateless, since the REST API uses JWT for
+   * stateless authentication and CSRF is unnecessary.
    * </p>
    *
    * @param http the {@link HttpSecurity} object used to configure HTTP security settings
@@ -99,8 +102,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        .csrf(csrf ->
-            csrf.ignoringRequestMatchers("/auth/**", "/users", "/users/"))
+        .csrf(AbstractHttpConfigurer::disable) // CSRF unnecessary for stateless JWT authentication
         .authorizeHttpRequests(auth -> {
           auth.requestMatchers("/auth/**").permitAll();
           auth.requestMatchers(HttpMethod.POST, "/users", "/users/").permitAll();
