@@ -13,7 +13,6 @@ import static org.mockito.Mockito.when;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.UnauthorizedOperationException;
-import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -44,10 +43,6 @@ import org.springframework.test.context.ActiveProfiles;
  *   <li>
  *     <strong>Unauthorized Operation:</strong> Verifies that attempts to update an admin user
  *     result in an unauthorized operation error.
- *   </li>
- *   <li>
- *     <strong>User Not Found:</strong> Confirms that updating a non-existent user ID triggers
- *     a user not found exception.
  *   </li>
  * </ul>
  */
@@ -103,21 +98,6 @@ class LogisticsUserServiceUpdateTests {
     assertEquals(userId, result.getUserId());
     assertEquals(updateRequestDto.getUsername(), result.getUsername());
     assertEquals(updateRequestDto.getEmail(), result.getEmail());
-  }
-
-  /** Verifies that a non-existing user ID throws {@link UserNotFoundException}. */
-  @Test
-  void givenNonExistingUserWhenUpdateUserThenThrowsUserNotFoundException() {
-    when(logisticsUserRepository.findById(userId)).thenReturn(Optional.empty());
-
-    UserNotFoundException exception = assertThrows(UserNotFoundException.class,
-        () -> logisticsUserService.updateUser(userId, updateRequestDto));
-
-    verify(logisticsUserRepository, times(1)).findById(userId);
-    verify(logisticsUserRepository, never()).save(any(LogisticsUser.class));
-    assertNotNull(exception);
-    assertEquals(String.format("User with id %d does not exist", userId), exception.getMessage());
-    assertEquals("updateUser", exception.getOperation());
   }
 
   /** Verifies that updating an admin user throws {@link UnauthorizedOperationException}. */

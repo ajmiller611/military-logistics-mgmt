@@ -1,14 +1,12 @@
 package com.logistics.military.service;
 
+import com.logistics.military.annotation.CheckUserExistence;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.exception.UnauthorizedOperationException;
-import com.logistics.military.exception.UserAlreadyExistsException;
-import com.logistics.military.exception.UserCreationException;
-import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -17,13 +15,11 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -54,43 +50,25 @@ public class LogisticsUserService implements UserDetailsService {
   private final Clock clock;
 
   private static final String ROLE_NAME_ADMIN = "ADMIN";
-  private static final String NONEXISTENT_USER_ID_ERROR_MESSAGE = "User with id %d does not exist";
 
   /**
-   * Registers a new user by validating the input data, encoding the password,
-   * assigning a default role, and saving the user information to the database.
+   * Registers a new user by encoding the password and assigning a default role before
+   * saving the user information to the database.
    *
-   * <p>This method ensures secure handling of user data, including password encryption
-   * and role assignment. It validates that the user is new, checks required fields for
-   * null or empty values.
+   * <p>This method ensures secure handling of user data by performing the following actions:
+   * - Validating the user does not already exist (via {@link CheckUserExistence}).
+   * - Encoding the user's password before saving.
+   * - Assigning the default "USER" role to the new user.
+   * - Persisting the user in the database and returning the user details.
    * </p>
    *
    * @param userRequestDto the {@link UserRequestDto} containing the user's registration data.
    * @return a {@link LogisticsUserDto} object containing the registered user's details.
-   * @throws IllegalArgumentException if required fields are empty or null.
-   * @throws UserAlreadyExistsException if the username already exists in the database.
-   * @throws IllegalStateException if the "USER" role is missing in the database.
-   * @throws RuntimeException if an unexpected error occurs during user creation.
+   * @throws RoleNotFoundException if the "USER" role is missing in the database.
    */
+  @CheckUserExistence(checkBy = "username")
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
     logger.info("Create user request with DTO: {}",  userRequestDto);
-
-    // Validate user data for essential fields before processing.
-    if (userRequestDto.getUsername() == null || userRequestDto.getUsername().isEmpty()) {
-      throw new IllegalArgumentException("Username must not be empty.");
-    }
-    if (userRequestDto.getPassword() == null || userRequestDto.getPassword().isEmpty()) {
-      throw new IllegalArgumentException("Password must not be empty.");
-    }
-    if (userRequestDto.getEmail() == null || userRequestDto.getEmail().isEmpty()) {
-      throw new IllegalArgumentException("Email must not be empty.");
-    }
-
-    // Check for an existing user in the database.
-    if (logisticsUserRepository.findByUsername(userRequestDto.getUsername()).isPresent()) {
-      throw new UserAlreadyExistsException("User with username " + userRequestDto.getUsername()
-                                           + " already exists.");
-    }
 
     // Prepare user for registration by setting required fields and encoding the password.
     LogisticsUser user = new LogisticsUser();
@@ -101,21 +79,14 @@ public class LogisticsUserService implements UserDetailsService {
 
     // Attempt to retrieve and assign the default role. Throws an error if the role is unavailable.
     Role userRole = roleRepository.findByAuthority("USER")
-        .orElseThrow(() -> new IllegalStateException("USER role not found"));
+        .orElseThrow(() -> new RoleNotFoundException("Role 'USER' not found"));
 
     Set<Role> authorities = new HashSet<>();
     authorities.add(userRole);
     user.setAuthorities(authorities);
 
     // Save the user in the database to generate userId.
-    try {
-      user = logisticsUserRepository.save(user);
-    } catch (DataAccessException e) {
-      throw new UserCreationException("An error occurred while saving the user to the database", e);
-    } catch (Exception e) {
-      throw new UserCreationException(
-          "An unexpected error occurred while saving the user to the database", e);
-    }
+    user = logisticsUserRepository.save(user);
 
     logger.info("LogisticsUser created: {}", user);
     return mapToUserDto(user);
@@ -132,12 +103,13 @@ public class LogisticsUserService implements UserDetailsService {
    * @param size the number of users per page.
    * @return a {@link Page} containing {@link UserResponseDto} objects for the requested page,
    *         excluding users with the "ADMIN" role.
+   * @throws RoleNotFoundException if the "ADMIN" role is missing in the database.
    */
   public Page<UserResponseDto> getUsers(int page, int size) {
     // Set the paging restrictions for the pageable object
     Pageable pageable = PageRequest.of(page, size);
-    Role adminRole = roleRepository.findByAuthority(ROLE_NAME_ADMIN).orElseThrow(
-        () -> new RoleNotFoundException("Role 'ADMIN' not found"));
+    Role adminRole = roleRepository.findByAuthority(ROLE_NAME_ADMIN)
+        .orElseThrow(() -> new RoleNotFoundException("Role 'ADMIN' not found"));
     Page<LogisticsUser> usersPage =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
@@ -152,19 +124,31 @@ public class LogisticsUserService implements UserDetailsService {
   /**
    * Retrieves a user with the specified ID, excluding users with the "ADMIN" role.
    *
-   * <p>This method queries the database for a user with the given ID. If the user has an
-   * "ADMIN" role, the method returns an empty {@link Optional}. Non-existent user IDs
-   * also result in an empty {@link Optional}.
+   * <p>This method queries the database for a user with the given ID. If the user exists and
+   * does not have the "ADMIN" role, the method returns a {@link UserResponseDto} containing the
+   * user's details. If the user has the "ADMIN" role, it throws an
+   * {@link UnauthorizedOperationException}.
    * </p>
    *
    * @param id the ID of the user to retrieve
-   * @return an {@link Optional} containing the {@link LogisticsUser} if a user with the specified
-   *         ID exists and does not have the "ADMIN" role, or an empty {@link Optional} otherwise.
+   * @return a {@link UserResponseDto} containing the user's details if the user exists and does not
+   *         have the "ADMIN" role.
+   * @throws UnauthorizedOperationException if the user has the "ADMIN" role.
    */
+  @CheckUserExistence // Check by ID is default behavior
   public UserResponseDto getUserById(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "getUserById"));
+    /*
+     * The @CheckUserExistence aspect handles when the ID provided is to a nonexistent user. This
+     * interception by the aspect makes sure that this method wouldn't be able to execute when an ID
+     * is nonexistent. Since findById() returns an Optional, best practice is to only access the
+     * value after calling isPresent(). In this case, a value will always be present due to the
+     * aspect validation check. To prevent making redundant calls to the database by first calling
+     * isPresent() and then findById(), I am using .orElse() with an empty LogisticsUser object to
+     * satisfy the concern of accessing a value on an empty Optional. In practice,
+     * this empty LogisticsUser object will never be assigned to the user variable due to the
+     * aspects' validation.
+     */
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -175,16 +159,17 @@ public class LogisticsUserService implements UserDetailsService {
   }
 
   /**
-   * Updates the details of an existing user based on the provided ID and update request.
+   * Updates the details of an existing user, excluding users with the "ADMIN" role.
    *
    * @param id the ID of the user to be updated
-   * @param requestDto the {@link UserUpdateRequestDto} containing the new data for the user
+   * @param requestDto the {@link UserUpdateRequestDto} containing the updated data for the user
    * @return a {@link UserResponseDto} containing the updated user's details
+   * @throws UnauthorizedOperationException if the user has the "ADMIN" role.
    */
+  @CheckUserExistence
   public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "updateUser"));
+    // Refer to the explanation in getUserById() for why this approach is used.
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -201,18 +186,13 @@ public class LogisticsUserService implements UserDetailsService {
   /**
    * Deletes an existing user based on the provided id.
    *
-   * <p>The method throws a {@link UserNotFoundException} if the id provided is an admin user.
-   * Other exceptions are thrown for a user not existing and database-related exceptions for
-   * the global exception handler to process.</p>
-   *
    * @param id the id of the user to be deleted
-   * @throws UserNotFoundException if the provided id does not exist in the database
    * @throws UnauthorizedOperationException if the user is an admin
    */
+  @CheckUserExistence
   public void deleteUser(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).orElseThrow(
-        () -> new UserNotFoundException(
-            String.format(NONEXISTENT_USER_ID_ERROR_MESSAGE, id), "deleteUser"));
+    // Refer to the explanation in getUserById() for why this approach is used.
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -232,7 +212,6 @@ public class LogisticsUserService implements UserDetailsService {
    *
    * @param username the username of the user to load
    * @return the {@link UserDetails} containing user information for authentication
-   * @throws UsernameNotFoundException if no user with the specified username is found
    */
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

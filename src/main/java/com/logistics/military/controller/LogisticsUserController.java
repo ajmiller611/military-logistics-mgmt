@@ -1,6 +1,8 @@
 package com.logistics.military.controller;
 
+import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserPaginationRequestDto;
+import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserResponseDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
 import com.logistics.military.response.PaginatedData;
@@ -8,6 +10,7 @@ import com.logistics.military.response.ResponseWrapper;
 import com.logistics.military.service.LogisticsUserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,10 +20,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Controller for handling user-related HTTP requests.
@@ -41,6 +46,47 @@ public class LogisticsUserController {
 
   private static final String NONPOSITIVE_USER_ID_ERROR_MESSAGE =
       "User id must be greater than zero";
+
+  /**
+   * Registers a new user in the system.
+   *
+   * <p>This endpoint receives a {@link UserRequestDto} object containing the user's registration
+   * details, including username, password, and email. It delegates user creation to the
+   * {@link LogisticsUserService} and, upon successful registration, returns a response with the
+   * user’s information and the location of the new user resource.
+   * </p>
+   *
+   * @param body the {@link UserRequestDto} containing the user's registration data
+   * @return a {@link ResponseEntity} containing the newly created {@link UserResponseDto}
+   *     with a `Location` header for the created resource
+   */
+  @PostMapping({"/", ""})
+  public ResponseEntity<UserResponseDto> registerUser(@Valid @RequestBody UserRequestDto body) {
+    logger.info("Endpoint /users received POST request: {}", body);
+
+    // Delegate user creation to the user service
+    LogisticsUserDto userDto = logisticsUserService.createAndSaveUser(body);
+
+    // Build the URI location of the newly created user resource
+    URI location = ServletUriComponentsBuilder
+        .fromCurrentContextPath()
+        .path("/users/{id}")
+        .buildAndExpand(userDto.getUserId())
+        .toUri();
+
+    // Map the created user details to the response DTO
+    UserResponseDto userResponseDto = new UserResponseDto(
+        userDto.getUserId(),
+        userDto.getUsername(),
+        userDto.getEmail()
+    );
+
+    // Return a response entity with 201 Created status and user details
+    ResponseEntity<UserResponseDto> response =
+        ResponseEntity.created(location).body((userResponseDto));
+    logger.info("Endpoint /users response: {}", response);
+    return response;
+  }
 
   /**
    * Retrieves a paginated list of users.

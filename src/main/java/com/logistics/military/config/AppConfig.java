@@ -3,6 +3,7 @@ package com.logistics.military.config;
 import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 /**
  * Configuration class for application-wide beans.
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
  * </p>
  */
 @Configuration
+@EnableAspectJAutoProxy
 public class AppConfig {
 
   /**

@@ -3,7 +3,6 @@ package com.logistics.military.service;
 import com.logistics.military.dto.AuthTokensDto;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
-import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.security.TokenService;
 import java.util.Map;
@@ -38,19 +37,6 @@ public class AuthenticationService {
   private final LogisticsUserRepository logisticsUserRepository;
   private final LogisticsUserService logisticsUserService;
   private final TokenService tokenService;
-
-  /**
-   * Registers a new user using the provided {@link UserRequestDto}.
-   *
-   * <p>This method delegates the task of creating the user to the {@link LogisticsUserService}.
-   * </p>
-   *
-   * @param userRequestDto the data transfer object containing user registration details
-   * @return the created {@link LogisticsUser} object
-   */
-  public LogisticsUserDto registerNewUser(UserRequestDto userRequestDto) {
-    return logisticsUserService.createAndSaveUser(userRequestDto);
-  }
 
   /**
    * Authenticates a user and returns a {@link AuthTokensDto} object containing the

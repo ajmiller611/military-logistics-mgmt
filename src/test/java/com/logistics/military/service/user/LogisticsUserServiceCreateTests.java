@@ -1,20 +1,17 @@
 package com.logistics.military.service.user;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
-import com.logistics.military.exception.UserAlreadyExistsException;
-import com.logistics.military.exception.UserCreationException;
+import com.logistics.military.exception.RoleNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -25,29 +22,47 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import java.util.Set;
+import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataAccessException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Unit tests for the {@link LogisticsUserService} class, designed to validate its creation and
- * authentication functionalities, edge cases, and error handling mechanisms.
+ * Unit tests for the {@link LogisticsUserService} class.
  *
- * <p>The tests cover operations such as:
+ * <p>This test class focuses on verifying the core functionality of the
+ * {@link LogisticsUserService}, including the mapping of entities to DTOs, creation and
+ * saving of users, role validation, and user authentication.
+ * </p>
+ *
+ * <h2>Key Features Tested</h2>
  * <ul>
- *   <li>Mapping between domain model ({@link LogisticsUser}) and ({@link LogisticsUserDto}).</li>
- *   <li>Creating and saving users, including validation of inputs, role assignments,
- *       and exception handling.</li>
- *   <li>Loading user details for authentication, ensuring the correct handling of existing
- *       and non-existing users.</li>
+ *   <li>
+ *     <strong>DTO Mapping:</strong> Confirms that a {@link LogisticsUser} is accurately mapped
+ *     to a {@link LogisticsUserDto}, including all fields and authorities with the exception for
+ *     the password field.
+ *   </li>
+ *   <li>
+ *     <strong>User Creation:</strong> Ensures that a valid {@link UserRequestDto} results in
+ *     a {@link LogisticsUserDto} with correct details, and verifies logging during user creation.
+ *   </li>
+ *   <li>
+ *     <strong>Role Validation:</strong> Validates that a {@link Role} must exist for a user to
+ *     be created. Tests for proper handling of missing roles, including throwing an
+ *     {@link RoleNotFoundException}.
+ *   </li>
+ *   <li>
+ *     <strong>User Authentication:</strong> Confirms that {@code loadUserByUsername} returns
+ *     the correct {@link UserDetails} for an existing user and throws a
+ *     {@link UsernameNotFoundException} for non-existent users.
+ *   </li>
  * </ul>
  */
 @ExtendWith(MockitoExtension.class)
@@ -70,13 +85,7 @@ class LogisticsUserServiceCreateTests {
   Role userRole;
   LogisticsUser user;
 
-  /**
-   * Sets up test data for use before each test case.
-   *
-   * <p>This method includes details for a {@link UserRequestDto} and {@link LogisticsUser} objects.
-   * This represents the objects needed to mock a user and pass user data in the system.
-   * </p>
-   */
+  /** Sets up test data for use before each test case. */
   @BeforeEach
   void setUp() {
     userRequestDto = new UserRequestDto(
@@ -96,10 +105,7 @@ class LogisticsUserServiceCreateTests {
     );
   }
 
-  /**
-   * Test case for the utility method of mapping a {@link LogisticsUser} to a
-   * {@link LogisticsUserDto}. This test makes sure that the mapping is correctly done.
-   */
+  /** Ensure a {@link LogisticsUser} maps properly to a {@link LogisticsUserDto}. */
   @Test
   void givenLogisticsUserWhenMapToUserDtoThenReturnLogisticsUserDto() {
     LogisticsUserDto dto = logisticsUserService.mapToUserDto(user);
@@ -114,160 +120,53 @@ class LogisticsUserServiceCreateTests {
   }
 
   /**
-   * Test case for when a valid request DTO is provided to the service. The service should return a
-   * populated {@link LogisticsUserDto} with the newly created user's details.
+   * Verify a valid request DTO returns a {@link LogisticsUserDto} with the created user's details.
    */
   @Test
   void givenValidUserRequestDtoWhenCreateAndSaveUserThenReturnLogisticsUserDto() {
-
+    // Mock timestamp with a fixed timestamp to be able to test it properly
     when(clock.instant()).thenReturn(fixedClock.instant());
     when(clock.getZone()).thenReturn(fixedClock.getZone());
     when(roleRepository.findByAuthority(userRole.getAuthority())).thenReturn(Optional.of(userRole));
     when(logisticsUserRepository.save(any(LogisticsUser.class))).thenReturn(user);
 
-    LogisticsUserDto userDto = logisticsUserService.createAndSaveUser(userRequestDto);
+    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserService.class)) {
+      LogisticsUserDto userDto = logisticsUserService.createAndSaveUser(userRequestDto);
 
-    assertNotNull(userDto);
-    assertEquals(user.getUserId(), userDto.getUserId());
-    assertEquals(user.getUsername(), userDto.getUsername());
-    assertEquals(user.getEmail(), userDto.getEmail());
-    assertEquals(user.getCreatedAt(), userDto.getCreatedAt());
-    assertEquals(user.getAuthorities(), userDto.getAuthorities());
+      assertNotNull(userDto);
+      assertEquals(user.getUserId(), userDto.getUserId());
+      assertEquals(user.getUsername(), userDto.getUsername());
+      assertEquals(user.getEmail(), userDto.getEmail());
+      assertEquals(user.getCreatedAt(), userDto.getCreatedAt());
+      assertEquals(user.getAuthorities(), userDto.getAuthorities());
+
+      assertThat(logCaptor.getInfoLogs().getFirst()).contains(
+          "Create user request with DTO:", user.getUsername(), user.getEmail());
+
+      assertThat(logCaptor.getInfoLogs().get(1)).contains(
+          "LogisticsUser created:",
+          user.getUserId().toString(),
+          user.getUsername(),
+          user.getEmail(),
+          user.getCreatedAt().toString(),
+          user.getAuthorities().toString()
+      );
+    }
   }
 
-  /**
-   * Test case for when an invalid username is in the {@link UserRequestDto}. This shouldn't happen
-   * since the username should have gone through validation in the controller. This test verifies
-   * the backup check in {@link LogisticsUserService} is working correctly.
-   */
+  /** Verify an {@link RoleNotFoundException} is thrown when the 'USER' role does not exist. */
   @Test
-  void givenInvalidUsernameWhenCreateAndSaveUserThenThrowIllegalArgumentException() {
-    userRequestDto.setUsername(null);
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an null username");
-
-    userRequestDto.setUsername("");
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an empty username");
-  }
-
-  /**
-   * Test case for when an invalid password is in the {@link UserRequestDto}. This shouldn't happen
-   * since the password should have gone through validation in the controller. This test verifies
-   * the backup check in {@link LogisticsUserService} is working correctly.
-   */
-  @Test
-  void givenInvalidPasswordWhenCreateAndSaveUserThenThrowIllegalArgumentException() {
-    userRequestDto.setPassword(null);
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an null password");
-
-    userRequestDto.setPassword("");
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an empty password");
-  }
-
-  /**
-   * Test case for when an invalid email s in the {@link UserRequestDto}. This shouldn't happen
-   * since the email should have gone through validation in the controller. This test verifies
-   * the backup check in {@link LogisticsUserService} is working correctly.
-   */
-  @Test
-  void givenInvalidEmailWhenCreateAndSaveUserThenThrowIllegalArgumentException() {
-    userRequestDto.setEmail(null);
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an null email");
-
-    userRequestDto.setEmail("");
-    assertThrows(IllegalArgumentException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an empty email");
-  }
-
-  /**
-   * Test case for when the username already exists in the database. The service should throw an
-   * {@link UserAlreadyExistsException} when trying to create a user that already exists.
-   */
-  @Test
-  void givenExistingUserWhenCreateAndSaveUserThenThrowUserAlreadyExistsException() {
-    when(logisticsUserRepository.findByUsername(userRequestDto.getUsername()))
-        .thenReturn(Optional.of(new LogisticsUser()));
-
-    assertThrows(UserAlreadyExistsException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw an exception for an existing user");
-  }
-
-  /**
-   * Test case for when the 'USER' role can not be found in the database. The service should throw
-   * an {@link IllegalStateException} when the 'USER' role does not exist.
-   */
-  @Test
-  void givenRoleNotFoundWhenCreateAndSaveUserThenThrowIllegalStateException() {
+  void givenRoleNotFoundWhenCreateAndSaveUserThenThrowRoleNotFoundException() {
     when(clock.instant()).thenReturn(fixedClock.instant());
     when(clock.getZone()).thenReturn(fixedClock.getZone());
     when(roleRepository.findByAuthority("USER")).thenReturn(Optional.empty());
 
-    assertThrows(IllegalStateException.class,
+    assertThrows(RoleNotFoundException.class,
         () -> logisticsUserService.createAndSaveUser(userRequestDto),
         "Expected createAndSaveUser to throw an exception for role not found");
   }
 
-  /**
-   * Test case for when an error occurs when trying to save the user to the database. The service
-   * should throw a {@link UserCreationException} when a database error occurs.
-   */
-  @Test
-  void givenDatabaseErrorWhenCreateAndSaveUserThenThrowUserCreationException() {
-    when(logisticsUserRepository.findByUsername(userRequestDto.getUsername()))
-        .thenReturn(Optional.empty());
-    when(clock.instant()).thenReturn(fixedClock.instant());
-    when(clock.getZone()).thenReturn(fixedClock.getZone());
-    when(roleRepository.findByAuthority("USER")).thenReturn(Optional.of(userRole));
-
-    DataAccessException mockDataAccessException = mock(DataAccessException.class);
-    when(mockDataAccessException.getMessage()).thenReturn("Database save error");
-    when(logisticsUserRepository.save(any(LogisticsUser.class)))
-        .thenThrow(mockDataAccessException);
-
-    UserCreationException exception = assertThrows(UserCreationException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw UserCreationException when error saving"
-        + " to the database occurs.");
-
-    assertEquals("An error occurred while saving the user to the database", exception.getMessage());
-    assertNotNull(exception.getCause());
-    assertInstanceOf(DataAccessException.class, exception.getCause());
-    assertEquals("Database save error", exception.getCause().getMessage());
-
-    reset(logisticsUserRepository);
-
-    IllegalArgumentException mockException = mock(IllegalArgumentException.class);
-    when(mockException.getMessage()).thenReturn("Database save error");
-    when(logisticsUserRepository.save(any(LogisticsUser.class)))
-        .thenThrow(mockException);
-
-    exception = assertThrows(UserCreationException.class,
-        () -> logisticsUserService.createAndSaveUser(userRequestDto),
-        "Expected createAndSaveUser to throw UserCreationException when error saving"
-            + " to the database occurs.");
-
-    assertEquals("An unexpected error occurred while saving the user to the database",
-        exception.getMessage());
-    assertNotNull(exception.getCause());
-    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
-    assertEquals("Database save error", exception.getCause().getMessage());
-  }
-
-  /**
-   * Test case for when a user exists and needs to be queried for authentication. The service should
-   * return an {@link UserDetails} with the user's details found in the database.
-   */
+  /** Verify an existing user's {@link UserDetails} is return during an authentication query. */
   @Test
   void givenUserExistsWhenLoadUserByUsernameThenReturnUserDetails() {
     String username = "testUser";
@@ -281,8 +180,8 @@ class LogisticsUserServiceCreateTests {
   }
 
   /**
-   * Test case for when a user does not exist but is queried for authentication. The service should
-   * throw an {@link UsernameNotFoundException}.
+   * Verify a {@link UsernameNotFoundException} is thrown when a user does not exist during
+   * an authentication query.
    */
   @Test
   void givenUserDoesNotExistsWhenLoadUserByUsernameThenThrowUsernameNotFoundException() {
