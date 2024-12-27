@@ -3,10 +3,10 @@ package com.logistics.military.service;
 import com.logistics.military.dto.AuthTokensDto;
 import com.logistics.military.dto.LogisticsUserDto;
 import com.logistics.military.dto.UserRequestDto;
+import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.security.TokenService;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +52,7 @@ public class AuthenticationService {
    *     the user's details to be used in the controller
    */
   public AuthTokensDto loginUser(UserRequestDto userRequestDto) {
+    logger.info("Login request received with username: {}", userRequestDto.getUsername());
     try {
       // Authenticate the user with the provided username and password.
       Authentication auth = authenticationManager.authenticate(
@@ -59,13 +60,21 @@ public class AuthenticationService {
               userRequestDto.getUsername(),
               userRequestDto.getPassword())
       );
+      logger.info("Authentication successful for {}", userRequestDto.getUsername());
 
       // Generate JWT tokens upon successful authentication
       Map<String, String> tokens = tokenService.generateTokens(auth);
 
       // Query the database for the user's data
       LogisticsUserDto logisticsUserDto = logisticsUserService.mapToUserDto(
-          logisticsUserRepository.findByUsername(userRequestDto.getUsername()).orElseThrow());
+          logisticsUserRepository.findByUsername(userRequestDto.getUsername())
+              .orElseThrow(() -> new UserNotFoundException(
+                  String.format("User with username '%s' does not exists.",
+                      userRequestDto.getUsername()), "loginUser")
+              )
+      );
+
+      logger.info("User details returned: {}", logisticsUserDto);
 
       // Return a response containing the user and the generated token
       return new AuthTokensDto(
@@ -73,7 +82,7 @@ public class AuthenticationService {
           tokens.get("refreshToken"),
           logisticsUserDto
       );
-    } catch (AuthenticationException | NoSuchElementException e) {
+    } catch (AuthenticationException | UserNotFoundException e) {
       // Return an empty tokens and null user dto in case of authentication failure
       return new AuthTokensDto("", "", null);
     }
