@@ -137,7 +137,18 @@ public class LogisticsUserService implements UserDetailsService {
    */
   @CheckUserExistence // Check by ID is default behavior
   public UserResponseDto getUserById(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).get();
+    /*
+     * The @CheckUserExistence aspect handles when the ID provided is to a nonexistent user. This
+     * interception by the aspect makes sure that this method wouldn't be able to execute when an ID
+     * is nonexistent. Since findById() returns an Optional, best practice is to only access the
+     * value after calling isPresent(). In this case, a value will always be present due to the
+     * aspect validation check. To prevent making redundant calls to the database by first calling
+     * isPresent() and then findById(), I am using .orElse() with an empty LogisticsUser object to
+     * satisfy the concern of accessing a value on an empty Optional. In practice,
+     * this empty LogisticsUser object will never be assigned to the user variable due to the
+     * aspects' validation.
+     */
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -157,7 +168,8 @@ public class LogisticsUserService implements UserDetailsService {
    */
   @CheckUserExistence
   public UserResponseDto updateUser(Long id, UserUpdateRequestDto requestDto) {
-    LogisticsUser user = logisticsUserRepository.findById(id).get();
+    // Refer to the explanation in getUserById() for why this approach is used.
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
@@ -179,7 +191,8 @@ public class LogisticsUserService implements UserDetailsService {
    */
   @CheckUserExistence
   public void deleteUser(Long id) {
-    LogisticsUser user = logisticsUserRepository.findById(id).get();
+    // Refer to the explanation in getUserById() for why this approach is used.
+    LogisticsUser user = logisticsUserRepository.findById(id).orElse(new LogisticsUser());
 
     if (user.hasRole(ROLE_NAME_ADMIN)) {
       throw new UnauthorizedOperationException(
