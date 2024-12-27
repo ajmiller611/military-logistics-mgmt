@@ -64,7 +64,7 @@ public class LogisticsUserService implements UserDetailsService {
    *
    * @param userRequestDto the {@link UserRequestDto} containing the user's registration data.
    * @return a {@link LogisticsUserDto} object containing the registered user's details.
-   * @throws IllegalStateException if the "USER" role is missing in the database.
+   * @throws RoleNotFoundException if the "USER" role is missing in the database.
    */
   @CheckUserExistence(checkBy = "username")
   public LogisticsUserDto createAndSaveUser(UserRequestDto userRequestDto) {
@@ -103,6 +103,7 @@ public class LogisticsUserService implements UserDetailsService {
    * @param size the number of users per page.
    * @return a {@link Page} containing {@link UserResponseDto} objects for the requested page,
    *         excluding users with the "ADMIN" role.
+   * @throws RoleNotFoundException if the "ADMIN" role is missing in the database.
    */
   public Page<UserResponseDto> getUsers(int page, int size) {
     // Set the paging restrictions for the pageable object
