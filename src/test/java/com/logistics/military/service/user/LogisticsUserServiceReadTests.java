@@ -313,20 +313,6 @@ class LogisticsUserServiceReadTests {
     assertEquals(user.getEmail(), result.getEmail());
   }
 
-  /** Verifies that when an id doesn't exist throws {@link UserNotFoundException}. */
-  @Test
-  void givenNonExistentUserIdWhenGetUserByIdThenThrowsUserNotFoundException() {
-    when(logisticsUserRepository.findById(userId)).thenReturn(Optional.empty());
-
-    UserNotFoundException exception = assertThrows(UserNotFoundException.class,
-        () -> logisticsUserService.getUserById(userId));
-
-    verify(logisticsUserRepository, times(1)).findById(userId);
-    assertNotNull(exception);
-    assertEquals(String.format("User with id %d does not exist", userId), exception.getMessage());
-    assertEquals("getUserById", exception.getOperation());
-  }
-
   /** Verifies that an admin user ID throws {@link UnauthorizedOperationException}. */
   @Test
   void givenAdminIdTypeWhenGetUserByIdThenThrowsUnauthorizedOperationException() {

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.exception.UserAlreadyExistsException;
+import com.logistics.military.exception.UserNotFoundException;
 import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
@@ -30,10 +31,15 @@ import org.springframework.transaction.annotation.Transactional;
  * <h2>Key Features Tested</h2>
  * <ul>
  *   <li>
- *     <strong>Aspect Interception:</strong> Confirms that the {@code @CheckUserExistence} aspect
- *     intercepts the call to {@code createAndSaveUser()} and properly throws a
- *     {@link UserAlreadyExistsException} when a user with the given username already exists in the
- *     database.
+ *     <strong>Aspect Interception for Existing Users:</strong> Confirms that the
+ *     {@code @CheckUserExistence} aspect intercepts the call to {@code createAndSaveUser()}
+ *     and properly throws a {@link UserAlreadyExistsException} when a user with the
+ *     given username already exists in the database.
+ *   </li>
+ *   <li>
+ *     <strong>Aspect Interception for Nonexistent Users:</strong> Confirms that the
+ *     {@code @CheckUserExistence} aspect intercepts the call to {@code getUserById()} and
+ *     throws a {@link UserNotFoundException} when attempting to retrieve a nonexistent user.
  *   </li>
  *   <li>
  *     <strong>Exception Propagation:</strong> Ensures that the exception thrown by the aspect is
@@ -50,7 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("integration")
 @AutoConfigureMockMvc
 @Transactional
-class LogisticsUserServiceCreateIntegrationTests {
+class LogisticsUserServiceIntegrationTests {
 
   @Autowired private LogisticsUserService logisticsUserService;
   @Autowired private LogisticsUserRepository logisticsUserRepository;
@@ -95,5 +101,18 @@ class LogisticsUserServiceCreateIntegrationTests {
     Long userCountAfter = logisticsUserRepository.count();
     assertEquals(1, userCountAfter,
         "The number of users in the database should not have changed.");
+  }
+
+  /**
+   * Verify the {@code @CheckUserExistence} aspect intercepts the call to
+   * {@code getUserById()} and throws a {@link UserNotFoundException} when a user is nonexistent.
+   * The exception is propagated to {@code getUserById()} which satisfies the test.
+   */
+  @Test
+  void givenNonExistentUserWhenGetUserByIdThenThrowUserNotFoundException() {
+    Long nonExistentId = 2L;
+    assertThrows(UserNotFoundException.class,
+        () -> logisticsUserService.getUserById(nonExistentId),
+        "Expected getUserById to throw aUserNotFoundException for a nonexistent user");
   }
 }
