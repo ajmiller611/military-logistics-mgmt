@@ -1,5 +1,6 @@
 package com.logistics.military.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,9 +17,9 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +67,7 @@ class AuthenticationServiceTests {
       Clock.fixed(
           fixedTimestamp.atZone(ZoneId.systemDefault()).toInstant(),
           ZoneId.systemDefault());
+
   private UserRequestDto validUserRequest;
   private LogisticsUser logisticsUser;
   private Authentication auth;
@@ -124,11 +126,20 @@ class AuthenticationServiceTests {
         .thenReturn(Optional.of(logisticsUser));
     when(logisticsUserService.mapToUserDto(logisticsUser)).thenReturn(logisticsUserDto);
 
-    AuthTokensDto result = authenticationService.loginUser(validUserRequest);
+    try (LogCaptor logCaptor = LogCaptor.forClass(AuthenticationService.class)) {
+      AuthTokensDto result = authenticationService.loginUser(validUserRequest);
 
-    assertEquals("validAccessToken", result.getAccessToken());
-    assertEquals("validRefreshToken", result.getRefreshToken());
-    assertEquals(logisticsUserDto, result.getLogisticsUserDto());
+      assertEquals("validAccessToken", result.getAccessToken());
+      assertEquals("validRefreshToken", result.getRefreshToken());
+      assertEquals(logisticsUserDto, result.getLogisticsUserDto());
+
+      assertThat(logCaptor.getInfoLogs().getFirst())
+          .contains("Login request received with username: validUser");
+      assertThat(logCaptor.getInfoLogs().get(1))
+          .contains("Authentication successful for validUser");
+      assertThat(logCaptor.getInfoLogs().get(2))
+          .contains(String.format("User details returned: %s", logisticsUserDto));
+    }
   }
 
   /**
@@ -156,8 +167,7 @@ class AuthenticationServiceTests {
     validUserRequest.setUsername("NonExistingUser");
 
     when(authenticationManager.authenticate(any(Authentication.class))).thenReturn(auth);
-    when(logisticsUserRepository.findByUsername("NonExistingUser"))
-        .thenThrow(new NoSuchElementException());
+    when(logisticsUserRepository.findByUsername("NonExistingUser")).thenReturn(Optional.empty());
 
     AuthTokensDto result = authenticationService.loginUser(validUserRequest);
 
