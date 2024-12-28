@@ -93,6 +93,8 @@ class LogisticsUserControllerDeleteTests {
       verify(logisticsUserService, times(1)).deleteUser(validUserId);
 
       assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected log to contain the message for DELETE request "
+              + "with id = 2, but it was not found.")
           .contains("Endpoint '/users/{id}' received DELETE request with id = 2");
     }
   }
