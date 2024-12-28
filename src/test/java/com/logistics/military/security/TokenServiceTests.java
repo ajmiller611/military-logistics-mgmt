@@ -80,8 +80,9 @@ class TokenServiceTests {
   void givenValidKeysWhenJwtEncoderThenReturnValidJwtEncoder() {
     JwtEncoder jwtEncoder = tokenService.jwtEncoder();
 
-    assertNotNull(jwtEncoder);
-    assertInstanceOf(NimbusJwtEncoder.class, jwtEncoder);
+    assertNotNull(jwtEncoder, "JwtEncoder should not be null");
+    assertInstanceOf(NimbusJwtEncoder.class, jwtEncoder,
+        "JwtEncoder should be an instance of NimbusJwtEncoder");
   }
 
   /**
@@ -92,8 +93,9 @@ class TokenServiceTests {
   void givenValidKeysWhenJwtDecoderThenReturnValidJwtDecoder() {
     JwtDecoder jwtDecoder = tokenService.jwtDecoder();
 
-    assertNotNull(jwtDecoder);
-    assertInstanceOf(NimbusJwtDecoder.class, jwtDecoder);
+    assertNotNull(jwtDecoder, "JwtDecoder should not be null");
+    assertInstanceOf(NimbusJwtDecoder.class, jwtDecoder,
+        "JwtDecoder should be an instance of NimbusJwtDecoder");
   }
 
   /**
@@ -104,12 +106,12 @@ class TokenServiceTests {
   @Test
   void givenValidAuthenticationWhenGenerateAccessTokenThenReturnAccessTokenString() {
     String token = tokenService.generateAccessToken(auth);
-    assertNotNull(token);
+    assertNotNull(token, "Access token should not be null");
 
     Map<String, Object> claims = tokenService.decodeJwt(token);
-    assertEquals(username, claims.get("sub"));
-    assertEquals("self", claims.get("iss"));
-    assertEquals("USER", claims.get("roles"));
+    assertEquals(username, claims.get("sub"), "Subject claim should match the username");
+    assertEquals("self", claims.get("iss"), "Issuer claim should be 'self'");
+    assertEquals("USER", claims.get("roles"), "Roles claim should match 'USER'");
 
     Instant now = Instant.now();
     Instant expirationTime = now.plus(15, ChronoUnit.MINUTES);
@@ -131,11 +133,11 @@ class TokenServiceTests {
   @Test
   void givenValidAuthenticationWhenGenerateRefreshTokenThenReturnRefreshTokenString() {
     String token = tokenService.generateRefreshToken(auth);
-    assertNotNull(token);
+    assertNotNull(token, "Refresh token should not be null");
 
     Map<String, Object> claims = tokenService.decodeJwt(token);
-    assertEquals(username, claims.get("sub"));
-    assertEquals("self", claims.get("iss"));
+    assertEquals(username, claims.get("sub"), "Subject claim should match the username");
+    assertEquals("self", claims.get("iss"), "Issuer claim should be 'self'");
 
     Instant now = Instant.now();
     Instant expirationTime = now.plus(7, ChronoUnit.DAYS);
@@ -152,13 +154,14 @@ class TokenServiceTests {
   @Test
   void givenValidAuthenticationWhenGenerateTokensThenReturnMapOfStringTokens() {
     Map<String, String> tokens = tokenService.generateTokens(auth);
-    assertNotNull(tokens);
+    assertNotNull(tokens, "Token map should not be null");
 
     Map<String, Object> accessTokenClaims = tokenService.decodeJwt(tokens.get("accessToken"));
-    assertNotNull(accessTokenClaims);
-    assertEquals(username, accessTokenClaims.get("sub"));
-    assertEquals("self", accessTokenClaims.get("iss"));
-    assertEquals("USER", accessTokenClaims.get("roles"));
+    assertNotNull(accessTokenClaims, "Access token claims should not be null");
+    assertEquals(username, accessTokenClaims.get("sub"), "Subject claim should match the username");
+    assertEquals("self", accessTokenClaims.get("iss"), "Issuer claim should be 'self'");
+    assertEquals("USER", accessTokenClaims.get("roles"), "Roles claim should match 'USER'");
+
     Instant now = Instant.now();
     Instant expirationTime = now.plus(15, ChronoUnit.MINUTES);
     Instant expiresAt = (Instant) accessTokenClaims.get("exp");
@@ -167,9 +170,10 @@ class TokenServiceTests {
         "Token expiration time should be within 15 minutes from now");
 
     Map<String, Object> refreshTokenClaims = tokenService.decodeJwt(tokens.get("refreshToken"));
-    assertNotNull(refreshTokenClaims);
-    assertEquals(username, refreshTokenClaims.get("sub"));
-    assertEquals("self", refreshTokenClaims.get("iss"));
+    assertNotNull(refreshTokenClaims, "Refresh token claims should not be null");
+    assertEquals(username, refreshTokenClaims.get("sub"), "Subject claim should match the username");
+    assertEquals("self", refreshTokenClaims.get("iss"), "Issuer claim should be 'self'");
+
 
     now = Instant.now();
     expirationTime = now.plus(7, ChronoUnit.DAYS);
