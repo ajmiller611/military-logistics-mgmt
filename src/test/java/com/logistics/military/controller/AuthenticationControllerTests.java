@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.military.config.AppConfig;
 import com.logistics.military.config.SecurityConfig;
 import com.logistics.military.dto.AuthTokensDto;
@@ -74,6 +75,7 @@ class AuthenticationControllerTests {
 
   @InjectMocks private AuthenticationController authenticationController;
   @Autowired private MockMvc mockMvc;
+  @Autowired private ObjectMapper objectMapper;
   @MockBean private AuthenticationService authenticationService;
   @MockBean private LogisticsUserService logisticsUserService;
   @MockBean private TokenService tokenService;
@@ -87,63 +89,11 @@ class AuthenticationControllerTests {
           ZoneId.systemDefault());
 
   /**
-   * Test that the /auth/login endpoint will log a received request and its response.
-   */
-  @Test
-  void givenRequestReceivedWhenLoginUserThenLogRequestAndResponse() throws Exception {
-    Role userRole = new Role("USER");
-    LogisticsUserDto testUser = new LogisticsUserDto(
-        2L,
-        "testUser",
-        "test@example.com",
-        fixedTimestamp,
-        Set.of(userRole)
-    );
-
-    AuthTokensDto authTokensDto = new AuthTokensDto(
-        "access_token_value",
-        "refresh_token_value",
-        testUser
-    );
-
-    when(authenticationService.loginUser(any(UserRequestDto.class))).thenReturn(authTokensDto);
-
-    try (LogCaptor logCaptor = LogCaptor.forClass(AuthenticationController.class)) {
-      String json = """
-          {
-            "username": "testUser",
-            "password": "password",
-            "email": "test@example.com"
-          }
-          """;
-
-      mockMvc.perform(post("/auth/login")
-          .contentType(MediaType.APPLICATION_JSON)
-          .content(json));
-
-      // Verify the log entry of received request
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /auth/login received request:")
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-
-      // Verify the log entry of the response
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /auth/login response:")
-                  && log.contains(testUser.getUserId().toString())
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-    }
-  }
-
-  /**
    * Test that the /auth/login endpoint will respond with 200 Ok, access token in Authorization
    * header and refresh token in the form of an HTTP-Only cookie, and the user's details.
    */
   @Test
-  void givenValidCredentialsWhenLoginUserThenReturnTokenCookiesAndUserDetails() throws Exception {
+  void givenValidCredentialsWhenLoginUserThenReturnTokensAndUserDetails() throws Exception {
     Role userRole = new Role("USER");
     LogisticsUserDto testUser = new LogisticsUserDto(
         2L,
@@ -161,25 +111,43 @@ class AuthenticationControllerTests {
 
     when(authenticationService.loginUser(any(UserRequestDto.class))).thenReturn(authTokensDto);
 
-    String json = """
-        {
-          "username": "testUser",
-          "password": "password",
-          "email": "test@example.com"
-        }
-        """;
+    UserRequestDto requestDto = new UserRequestDto(
+        "testUser",
+        "password",
+        "test@example.com"
+    );
+    String validJson = objectMapper.writeValueAsString(requestDto);
 
-    mockMvc.perform(post("/auth/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
-        .andExpect(status().isOk())
-        .andExpect(header().string(HttpHeaders.AUTHORIZATION, "Bearer access_token_value"))
-        .andExpect(cookie().value("refresh_token", "refresh_token_value"))
-        .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
-        .andExpect(jsonPath("$.username").value(testUser.getUsername()))
-        .andExpect(jsonPath("$.email").value(testUser.getEmail()));
+    try (LogCaptor logCaptor = LogCaptor.forClass(AuthenticationController.class)) {
+      mockMvc.perform(post("/auth/login")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(validJson))
+          .andExpect(status().isOk())
+          .andExpect(header().string(HttpHeaders.AUTHORIZATION, "Bearer access_token_value"))
+          .andExpect(cookie().value("refresh_token", "refresh_token_value"))
+          .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
+          .andExpect(jsonPath("$.username").value(testUser.getUsername()))
+          .andExpect(jsonPath("$.email").value(testUser.getEmail()));
 
-    verify(authenticationService).loginUser(any(UserRequestDto.class));
+      verify(authenticationService).loginUser(any(UserRequestDto.class));
+
+      // Verify the log entry of received request
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected logs to include information about the received "
+              + "login request but it was missing.")
+          .anyMatch(log -> log.contains("Endpoint /auth/login received request:")
+              && log.contains(testUser.getUsername())
+              && log.contains(testUser.getEmail()));
+
+      // Verify the log entry of the response
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected logs to include information about the login "
+              + "response but it was missing.")
+          .anyMatch(log -> log.contains("Endpoint /auth/login response:")
+              && log.contains(testUser.getUserId().toString())
+              && log.contains(testUser.getUsername())
+              && log.contains(testUser.getEmail()));
+    }
   }
 
   /**
@@ -191,17 +159,16 @@ class AuthenticationControllerTests {
     AuthTokensDto nullAuthTokensDto = new AuthTokensDto(null, null, null);
     when(authenticationService.loginUser(any(UserRequestDto.class))).thenReturn(nullAuthTokensDto);
 
-    String json = """
-        {
-          "username": "invalidUser",
-          "password": "wrongPassword",
-          "email": "test@example.com"
-        }
-        """;
+    UserRequestDto requestDto = new UserRequestDto(
+        "invalidUser",
+        "wrongPassword",
+        "test@example.com"
+    );
+    String validJson = objectMapper.writeValueAsString(requestDto);
 
     mockMvc.perform(post("/auth/login")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(json))
+        .content(validJson))
         .andExpect(status().isUnauthorized());
 
     verify(authenticationService).loginUser(any(UserRequestDto.class));
@@ -214,7 +181,7 @@ class AuthenticationControllerTests {
 
     mockMvc.perform(post("/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .content(json))
+            .content(validJson))
         .andExpect(status().isUnauthorized());
 
     verify(authenticationService).loginUser(any(UserRequestDto.class));
