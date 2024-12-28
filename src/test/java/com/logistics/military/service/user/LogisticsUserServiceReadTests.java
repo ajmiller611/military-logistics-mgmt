@@ -107,10 +107,16 @@ class LogisticsUserServiceReadTests {
   void givenLogisticsUserWhenMapToUserResponseDtoThenReturnUserResponseDto() {
     UserResponseDto responseDto = logisticsUserService.mapToUserResponseDto(user);
 
-    assertNotNull(responseDto);
-    assertEquals(user.getUserId(), responseDto.getUserId());
-    assertEquals(user.getUsername(), responseDto.getUsername());
-    assertEquals(user.getEmail(), responseDto.getEmail());
+    assertNotNull(responseDto, "The mapped UserResponseDto should not be null.");
+
+    assertEquals(user.getUserId(), responseDto.getUserId(),
+        "User ID should match between entity and DTO.");
+
+    assertEquals(user.getUsername(), responseDto.getUsername(),
+        "Username should match between entity and DTO.");
+
+    assertEquals(user.getEmail(), responseDto.getEmail(),
+        "Email should match between entity and DTO.");
   }
 
   /** Verify an {@link RoleNotFoundException} is thrown when the 'ADMIN' role does not exist. */
@@ -136,16 +142,24 @@ class LogisticsUserServiceReadTests {
 
     verify(logisticsUserRepository, times(1))
         .findAllWithoutRole(pageable, adminRole);
-    assertNotNull(fetchedUsers);
-    assertEquals(pagedUsers.getNumber(), fetchedUsers.getNumber());
-    assertEquals(pagedUsers.getTotalPages(), fetchedUsers.getTotalPages());
-    assertEquals(pagedUsers.getTotalElements(), fetchedUsers.getTotalElements());
-    assertEquals(pagedUsers.getContent().size(), fetchedUsers.getContent().size());
+    assertNotNull(fetchedUsers, "Fetched users should not be null.");
+    assertEquals(pagedUsers.getNumber(), fetchedUsers.getNumber(), "Page number should match.");
+    assertEquals(pagedUsers.getTotalPages(), fetchedUsers.getTotalPages(),
+        "Total pages should match.");
+
+    assertEquals(pagedUsers.getTotalElements(), fetchedUsers.getTotalElements(),
+        "Total elements should match.");
+
+    assertEquals(pagedUsers.getContent().size(), fetchedUsers.getContent().size(),
+        "Content size should match.");
+
     assertTrue(fetchedUsers.getContent().stream()
-        .noneMatch(dto -> "admin".equals(dto.getUsername())));
+        .noneMatch(dto -> "admin".equals(dto.getUsername())),
+        "No admin users should be included.");
+
     assertIterableEquals(pagedUsers.getContent().stream()
         .map(logisticsUserService::mapToUserResponseDto)
-        .toList(), fetchedUsers.getContent());
+        .toList(), fetchedUsers.getContent(), "Fetched users should match the paged content.");
   }
 
   /** Verifies when no users exist then an empty page is returned. */
@@ -182,11 +196,18 @@ class LogisticsUserServiceReadTests {
 
     verify(logisticsUserRepository, times(1))
         .findAllWithoutRole(pageable, adminRole);
-    assertNotNull(fetchedUsers);
-    assertEquals(sizeOnePage.getContent().size(), fetchedUsers.getContent().size());
-    assertEquals(sizeOnePage.getNumber(), fetchedUsers.getNumber());
-    assertEquals(sizeOnePage.getTotalPages(), fetchedUsers.getTotalPages());
-    assertEquals(sizeOnePage.getTotalElements(), fetchedUsers.getTotalElements());
+    assertNotNull(fetchedUsers, "Fetched users should not be null.");
+    assertEquals(sizeOnePage.getContent().size(), fetchedUsers.getContent().size(),
+        "Content size should match.");
+
+    assertEquals(sizeOnePage.getNumber(), fetchedUsers.getNumber(),
+        "Page number should match.");
+
+    assertEquals(sizeOnePage.getTotalPages(), fetchedUsers.getTotalPages(),
+        "Total pages should match.");
+
+    assertEquals(sizeOnePage.getTotalElements(), fetchedUsers.getTotalElements(),
+        "Total elements should match.");
   }
 
   /** Verifies correct subset of users is returned given a specific page number. */
@@ -211,14 +232,18 @@ class LogisticsUserServiceReadTests {
 
     verify(logisticsUserRepository, times(1))
         .findAllWithoutRole(pageable, adminRole);
-    assertNotNull(fetchedUsers);
-    assertEquals(pageOne.getNumber(), fetchedUsers.getNumber());
-    assertEquals(pageOne.getTotalPages(), fetchedUsers.getTotalPages());
-    assertEquals(pageOne.getTotalElements(), fetchedUsers.getTotalElements());
+    assertNotNull(fetchedUsers, "Fetched users should not be null.");
+    assertEquals(pageOne.getNumber(), fetchedUsers.getNumber(), "Page number should match.");
+    assertEquals(pageOne.getTotalPages(), fetchedUsers.getTotalPages(),
+        "Total pages should match.");
 
-    assertEquals(1, fetchedUsers.getContent().size());
+    assertEquals(pageOne.getTotalElements(), fetchedUsers.getTotalElements(),
+        "Total elements should match.");
+
+    assertEquals(1, fetchedUsers.getContent().size(), "Content size should be 1.");
     UserResponseDto expectedUserDto = logisticsUserService.mapToUserResponseDto(expectedUser);
-    assertEquals(expectedUserDto, fetchedUsers.getContent().getFirst());
+    assertEquals(expectedUserDto, fetchedUsers.getContent().getFirst(),
+        "The first user in the page should match.");
   }
 
   /** Verifies the last page gets the remaining users correctly. */
@@ -238,17 +263,23 @@ class LogisticsUserServiceReadTests {
 
     verify(logisticsUserRepository, times(1))
         .findAllWithoutRole(lastPageable, adminRole);
-    assertNotNull(fetchedUsers);
-    assertEquals(lastPageNumber, fetchedUsers.getNumber());
-    assertEquals((totalUsers + pageSize - 1) / pageSize, fetchedUsers.getTotalPages());
-    assertEquals(totalUsers, fetchedUsers.getTotalElements());
+    assertNotNull(fetchedUsers, "Fetched users should not be null.");
+    assertEquals(lastPageNumber, fetchedUsers.getNumber(), "Page number should match.");
+    assertEquals((totalUsers + pageSize - 1) / pageSize, fetchedUsers.getTotalPages(),
+        "Total pages should match.");
+
+    assertEquals(totalUsers, fetchedUsers.getTotalElements(), "Total elements should match.");
 
     int remainingUsers = totalUsers % pageSize;
-    assertEquals(remainingUsers, fetchedUsers.getContent().size());
+    assertEquals(remainingUsers, fetchedUsers.getContent().size(),
+        "Remaining users in the last page should match.");
+
     List<UserResponseDto> expectedDtos = lastPage.stream()
         .map(logisticsUserService::mapToUserResponseDto)
         .toList();
-    assertEquals(expectedDtos, fetchedUsers.getContent());
+
+    assertEquals(expectedDtos, fetchedUsers.getContent(),
+        "Fetched users should match expected DTOs.");
   }
 
   /**
@@ -298,10 +329,16 @@ class LogisticsUserServiceReadTests {
     UserResponseDto result = logisticsUserService.getUserById(userId);
 
     verify(logisticsUserRepository, times(1)).findById(userId);
-    assertNotNull(result);
-    assertEquals(user.getUserId(), result.getUserId());
-    assertEquals(user.getUsername(), result.getUsername());
-    assertEquals(user.getEmail(), result.getEmail());
+    assertNotNull(result, "The result should not be null when a valid user ID is provided.");
+
+    assertEquals(user.getUserId(), result.getUserId(),
+        "The user ID in the response should match the input ID.");
+
+    assertEquals(user.getUsername(), result.getUsername(),
+        "The username in the response should match the input username.");
+
+    assertEquals(user.getEmail(), result.getEmail(),
+        "The email in the response should match the input email.");
   }
 
   /** Verifies that an admin user ID throws {@link UnauthorizedOperationException}. */
@@ -317,10 +354,16 @@ class LogisticsUserServiceReadTests {
         () -> logisticsUserService.getUserById(adminUserId));
 
     verify(logisticsUserRepository, times(1)).findById(1L);
-    assertNotNull(exception);
+    assertNotNull(exception, "An UnauthorizedOperationException should be thrown when "
+        + "attempting to access an admin user.");
+
     assertEquals(
         String.format("Unauthorized user cannot update admin user with id %d", adminUserId),
-        exception.getMessage());
-    assertEquals(adminUserId, exception.getId());
+        exception.getMessage(),
+        "The exception message should indicate the unauthorized attempt to "
+            + "access an admin user.");
+
+    assertEquals(adminUserId, exception.getId(),
+        "The exception should reference the correct user ID.");
   }
 }
