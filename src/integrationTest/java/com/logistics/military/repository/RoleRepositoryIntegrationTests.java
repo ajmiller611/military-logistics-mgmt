@@ -44,9 +44,11 @@ class RoleRepositoryIntegrationTests {
 
     Optional<Role> fetchedRole = roleRepository.findByAuthority("ADMIN");
 
-    assertNotNull(fetchedRole);
-    assertTrue(fetchedRole.isPresent());
-    assertEquals(adminRole, fetchedRole.get());
+    assertNotNull(fetchedRole, "The fetched role should not be null.");
+    assertTrue(fetchedRole.isPresent(),
+        "The fetched role should be present for an existing authority.");
+    assertEquals(adminRole, fetchedRole.get(),
+        "The fetched role should match the saved admin role.");
   }
 
   /** Verifies a nonexistent role returns an empty optional. */
@@ -54,7 +56,7 @@ class RoleRepositoryIntegrationTests {
   void givenNonExistentRoleWhenFindByAuthorityThenReturnEmptyOptional() {
     Optional<Role> fetchedRole = roleRepository.findByAuthority("NONEXISTENTROLE");
 
-    assertNotNull(fetchedRole);
-    assertTrue(fetchedRole.isEmpty());
+    assertNotNull(fetchedRole, "The fetched role should not be null.");
+    assertTrue(fetchedRole.isEmpty(), "The fetched role should be empty for a nonexistent role.");
   }
 }
