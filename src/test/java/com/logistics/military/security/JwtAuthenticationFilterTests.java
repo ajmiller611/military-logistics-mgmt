@@ -130,7 +130,8 @@ class JwtAuthenticationFilterTests {
 
     verify(jwtAuthenticationConverter).convert(jwt);
     verify(filterChain).doFilter(request, response);
-    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication(),
+        "Expected authentication to be set in SecurityContextHolder after filter execution");
   }
 
   /**
