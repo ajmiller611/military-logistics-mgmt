@@ -135,19 +135,33 @@ class MilitaryLogisticsApplicationTests {
       // Verify that the Admin User was saved with the correct values
       ArgumentCaptor<LogisticsUser> userCaptor = ArgumentCaptor.forClass(LogisticsUser.class);
       verify(logisticsUserRepository).save(userCaptor.capture());
-      assertEquals(1L, userCaptor.getValue().getUserId());
-      assertEquals("admin", userCaptor.getValue().getUsername());
-      assertEquals("encodedPassword", userCaptor.getValue().getPassword());
-      assertEquals("admin@example.com", userCaptor.getValue().getEmail());
-      assertEquals(fixedTimestamp, userCaptor.getValue().getCreatedAt());
-      assertEquals(Set.of(userRole, adminRole), userCaptor.getValue().getAuthorities());
+
+      assertEquals(1L, userCaptor.getValue().getUserId(),
+          "The user ID should be 1 for the admin user.");
+
+      assertEquals("admin", userCaptor.getValue().getUsername(),
+          "The username for the admin user should be 'admin'.");
+
+      assertEquals("encodedPassword", userCaptor.getValue().getPassword(),
+          "The password should be encoded as 'encodedPassword'.");
+
+      assertEquals("admin@example.com", userCaptor.getValue().getEmail(),
+          "The email address for the admin user should be 'admin@example.com'.");
+
+      assertEquals(fixedTimestamp, userCaptor.getValue().getCreatedAt(),
+          "The creation timestamp for the admin user should match the fixed timestamp.");
+
+      assertEquals(Set.of(userRole, adminRole), userCaptor.getValue().getAuthorities(),
+          "The admin user should have both 'USER' and 'ADMIN' roles.");
 
       // Verify that logging happened correctly
-      assertThat(logCaptor.getInfoLogs()).containsExactly(
-          "Role created: Role(roleId=1, authority=ADMIN)",
-          "Role created: Role(roleId=2, authority=USER)",
-          "Admin User created: " + userCaptor.getValue().toString()
-      );
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Logs should indicate the creation of both roles and the admin user.")
+          .containsExactly(
+              "Role created: Role(roleId=1, authority=ADMIN)",
+              "Role created: Role(roleId=2, authority=USER)",
+              "Admin User created: " + userCaptor.getValue().toString()
+          );
     }
   }
 

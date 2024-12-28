@@ -89,13 +89,18 @@ class LogisticsUserServiceIntegrationTests {
     logisticsUserService.createAndSaveUser(userRequestDto);
     LogisticsUser user = logisticsUserRepository.findByUsername("testUser").orElseThrow();
 
-    assertNotNull(user);
-    assertEquals(1L, user.getUserId());
-    assertEquals(userRequestDto.getUsername(), user.getUsername());
-    assertTrue(passwordEncoder.matches(userRequestDto.getPassword(), user.getPassword()));
-    assertEquals(userRequestDto.getEmail(), user.getEmail());
-    assertTrue(user.getCreatedAt().isBefore(LocalDateTime.now()));
-    assertTrue(user.getAuthorities().contains(userRole));
+    assertNotNull(user, "The user should not be null after saving.");
+    assertEquals(1L, user.getUserId(), "The user ID should be 1.");
+    assertEquals(userRequestDto.getUsername(), user.getUsername(),
+        "The username should match the provided username.");
+    assertTrue(passwordEncoder.matches(userRequestDto.getPassword(), user.getPassword()),
+        "The password should be correctly encoded.");
+    assertEquals(userRequestDto.getEmail(), user.getEmail(),
+        "The email should match the provided email.");
+    assertTrue(user.getCreatedAt().isBefore(LocalDateTime.now()),
+        "The creation date should be before the current date.");
+    assertTrue(user.getAuthorities().contains(userRole),
+        "The user should have the 'USER' role assigned.");
   }
 
   /**

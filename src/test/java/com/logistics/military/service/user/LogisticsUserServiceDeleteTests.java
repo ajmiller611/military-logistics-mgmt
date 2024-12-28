@@ -104,8 +104,9 @@ class LogisticsUserServiceDeleteTests {
     UnauthorizedOperationException exception = assertThrows(UnauthorizedOperationException.class,
         () -> logisticsUserService.deleteUser(VALID_USER_ID));
 
-    assertNotNull(exception);
-    assertEquals("Unauthorized user cannot delete admin user with id 2", exception.getMessage());
+    assertNotNull(exception, "Exception must not be null");
+    assertEquals("Unauthorized user cannot delete admin user with id 2", exception.getMessage(),
+        "Expected exception message to be 'Unauthorized user cannot delete admin user with id 2'");
     verify(logisticsUserRepository, never()).deleteById(any(Long.class));
   }
 }

@@ -247,24 +247,38 @@ class LogisticsUserControllerReadTests {
   @Test
   @WithMockUser
   void givenValidRequestWhenGetUsersThenReturnsSuccessAndExpectedData() throws Exception {
-    mockMvc.perform(get("/users"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("success"))
-        .andExpect(jsonPath("$.message")
-            .value("Users retrieved successfully"))
-        .andExpect(jsonPath("$.data.data[0].userId").value(2L))
-        .andExpect(jsonPath("$.data.data[0].username").value("testUser"))
-        .andExpect(jsonPath("$.data.data[0].email").value("test@example.com"))
-        .andExpect(jsonPath("$.data.data[1].userId").value(3L))
-        .andExpect(jsonPath("$.data.data[1].username").value("testUser1"))
-        .andExpect(jsonPath("$.data.data[1].email").value("test1@example.com"))
-        .andExpect(jsonPath("$.data.data[0].username", not("admin")))
-        .andExpect(jsonPath("$.data.data[1].username", not("admin")))
-        .andExpect(jsonPath("$.data.currentPage").value(0))
-        .andExpect(jsonPath("$.data.totalPages").value(1))
-        .andExpect(jsonPath("$.data.totalItems").value(2));
+    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
+      mockMvc.perform(get("/users"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("success"))
+          .andExpect(jsonPath("$.message")
+              .value("Users retrieved successfully"))
+          .andExpect(jsonPath("$.data.data[0].userId").value(2L))
+          .andExpect(jsonPath("$.data.data[0].username").value("testUser"))
+          .andExpect(jsonPath("$.data.data[0].email").value("test@example.com"))
+          .andExpect(jsonPath("$.data.data[1].userId").value(3L))
+          .andExpect(jsonPath("$.data.data[1].username").value("testUser1"))
+          .andExpect(jsonPath("$.data.data[1].email").value("test1@example.com"))
+          .andExpect(jsonPath("$.data.data[0].username", not("admin")))
+          .andExpect(jsonPath("$.data.data[1].username", not("admin")))
+          .andExpect(jsonPath("$.data.currentPage").value(0))
+          .andExpect(jsonPath("$.data.totalPages").value(1))
+          .andExpect(jsonPath("$.data.totalItems").value(2));
 
-    verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
+      verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
+
+      assertFalse(logCaptor.getInfoLogs().isEmpty(), "Expected info logs to not be empty.");
+      assertEquals(2, logCaptor.getInfoLogs().size(),
+          "Expected exactly 2 info log messages.");
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected log to contain fetching users log but it was "
+              + "missing.")
+          .contains("Fetching users with page: 0, size: 10");
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected log to contain user retrieval summary but it "
+              + "was missing.")
+          .contains("Retrieved users for page 0: 2 users (1 total pages, 2 total users)");
+    }
   }
 
   /** Verifies the correct handling of empty data in the response. */
@@ -286,23 +300,6 @@ class LogisticsUserControllerReadTests {
     verify(logisticsUserService, times(1)).getUsers(anyInt(), anyInt());
   }
 
-  /** Verifies the logging of the request and the logging of the result of the retrieval. */
-  @Test
-  @WithMockUser
-  void givenValidRequestWhenGetUsersThenLogsProperly() throws Exception {
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      mockMvc.perform(get("/users"))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.status").value("success"));
-
-      assertFalse(logCaptor.getInfoLogs().isEmpty());
-      assertEquals(2, logCaptor.getInfoLogs().size());
-      assertThat(logCaptor.getInfoLogs()).contains("Fetching users with page: 0, size: 10");
-      assertThat(logCaptor.getInfoLogs())
-          .contains("Retrieved users for page 0: 2 users (1 total pages, 2 total users)");
-    }
-  }
-
   /**
    * Creates a paginated response of {@link UserResponseDto} objects for testing purposes.
    *
@@ -319,32 +316,26 @@ class LogisticsUserControllerReadTests {
     return new PageImpl<>(users, PageRequest.of(page, size), users.size());
   }
 
-  /** Verifies a valid user id responds ok (200) with the user data of that id. */
+  /** Verifies a valid user ID responds ok (200) with the user data and logged properly. */
   @Test
   @WithMockUser()
   void givenValidIdWhenGetUserByIdThenRespondsSuccessAndExpectedData() throws Exception {
     when(logisticsUserService.getUserById(testUserId)).thenReturn(userResponseDto);
 
-    mockMvc.perform(get("/users/2"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("success"))
-        .andExpect(jsonPath("$.message").value("User retrieved successfully"))
-        .andExpect(jsonPath("$.data.userId").value(testUserId))
-        .andExpect(jsonPath("$.data.username").value(user.getUsername()))
-        .andExpect(jsonPath("$.data.email").value(user.getEmail()));
-
-    verify(logisticsUserService, times(1)).getUserById(testUserId);
-  }
-
-  /** Verifies that a valid user's get request is logged properly. */
-  @Test
-  @WithMockUser
-  void givenValidGetRequestWhenGetUserByIdThenLogsRequestProperly() throws Exception {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
       mockMvc.perform(get("/users/2"))
-          .andExpect(status().isOk());
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("success"))
+          .andExpect(jsonPath("$.message").value("User retrieved successfully"))
+          .andExpect(jsonPath("$.data.userId").value(testUserId))
+          .andExpect(jsonPath("$.data.username").value(user.getUsername()))
+          .andExpect(jsonPath("$.data.email").value(user.getEmail()));
+
+      verify(logisticsUserService, times(1)).getUserById(testUserId);
 
       assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected log to contain GET request log for user ID 2 "
+              + "but it was missing.")
           .contains("Endpoint '/user/{id}' received GET request with id = 2");
     }
   }

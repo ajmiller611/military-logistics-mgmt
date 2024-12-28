@@ -63,10 +63,17 @@ class GlobalExceptionHandlerTests {
     ResponseEntity<ResponseWrapper<Map<String, String>>> response =
         globalExceptionHandler.handleValidationException(exception);
 
-    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-    assertEquals("Validation failed", response.getBody().getMessage());
-    assertEquals("Username is required", response.getBody().getData().get("username"));
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+        "Expected HTTP status to be 400 BAD_REQUEST for method argument not valid exception");
+
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+        "Expected response status to be 'error' for method argument not valid exception");
+
+    assertEquals("Validation failed", response.getBody().getMessage(),
+        "Expected response message to be 'Validation failed'");
+
+    assertEquals("Username is required", response.getBody().getData().get("username"),
+        "Expected validation error for field 'username' to be 'Username is required'");
   }
 
   /**
@@ -87,13 +94,20 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUnknownProperty(exception);
 
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("Unrecognized field named 'user_id'.", response.getBody().getMessage());
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+          "Expected HTTP status to be 400 BAD_REQUEST for unrecognized property exception");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' for unrecognized property exception");
+
+      assertEquals("Unrecognized field named 'user_id'.", response.getBody().getMessage(),
+          "Expected response message to describe the unrecognized field 'user_id'");
 
       assertThat(logCaptor.getWarnLogs())
+          .withFailMessage("Expected log entry to warn about potential misuse and "
+              + "include 'registration request'")
           .anyMatch(log -> log.contains("Potential misuse:")
-                           && log.contains("registration request"));
+              && log.contains("registration request"));
     }
 
     when(exception.getPropertyName()).thenReturn("unknownField");
@@ -102,13 +116,20 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUnknownProperty(exception);
 
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("Unrecognized field named 'unknownField'.", response.getBody().getMessage());
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+          "Expected HTTP status to be 400 BAD_REQUEST for unrecognized property exception");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' for unrecognized property exception");
+
+      assertEquals("Unrecognized field named 'unknownField'.", response.getBody().getMessage(),
+          "Expected response message to describe the unrecognized field 'unknownField'");
 
       assertThat(logCaptor.getWarnLogs())
+          .withFailMessage("Expected log entry to include unrecognized field name "
+              + "and mention 'registration request'")
           .anyMatch(log -> log.contains("Unrecognized field named")
-                           && log.contains("registration request"));
+              && log.contains("registration request"));
     }
   }
 
@@ -124,9 +145,15 @@ class GlobalExceptionHandlerTests {
     ResponseEntity<ResponseWrapper<String>> response =
         globalExceptionHandler.handleUserAlreadyExists(exception);
 
-    assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-    assertThat(response.getBody().getMessage()).contains("User already exists");
+    assertEquals(HttpStatus.CONFLICT, response.getStatusCode(),
+        "Expected HTTP status to be 409 CONFLICT when a user already exists");
+
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+        "Expected response status to be 'error' for user already exists exception");
+
+    assertThat(response.getBody().getMessage())
+        .withFailMessage("Expected response message to contain 'User already exists'")
+        .contains("User already exists");
   }
 
   /**
@@ -141,9 +168,14 @@ class GlobalExceptionHandlerTests {
     ResponseEntity<ResponseWrapper<String>> response =
         globalExceptionHandler.handleArgumentTypeMismatch(exception);
 
-    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-    assertEquals("Invalid argument data type", response.getBody().getMessage());
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+        "Expected HTTP status to be 400 BAD_REQUEST for a type mismatch error");
+
+    assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+        "Expected response status to be 'error' for method argument type mismatch exception");
+
+    assertEquals("Invalid argument data type", response.getBody().getMessage(),
+        "Expected response message to indicate an invalid argument data type");
   }
 
   /**
@@ -161,11 +193,20 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUserCreationException(exception);
 
-      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("User creation failed:");
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(),
+          "Expected HTTP status to be 500 INTERNAL_SERVER_ERROR for user creation failure");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' for user creation exception");
+
+      assertThat(response.getBody().getMessage())
+          .withFailMessage("Expected the response message to indicate a "
+              + "user creation failure")
+          .contains("User creation failed:");
 
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected logs to include 'DataAccessException' details "
+              + "and exception message")
           .anyMatch(log ->
               log.contains("DataAccessException")
                   && log.contains("occurred during user creation with message:")
@@ -176,15 +217,26 @@ class GlobalExceptionHandlerTests {
 
       response = globalExceptionHandler.handleUserCreationException(exception);
 
-      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertThat(response.getBody().getMessage()).contains("User creation failed:");
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(),
+          "Expected HTTP status to be 500 INTERNAL_SERVER_ERROR for user creation failure "
+              + "with unknown cause");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' for UserCreationException with "
+              + "unknown cause");
+
+      assertThat(response.getBody().getMessage())
+          .withFailMessage("Expected the response message to indicate a "
+              + "user creation failure")
+          .contains("User creation failed:");
 
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected logs to include 'Unknown Cause' and "
+              + "exception message for user creation failure")
           .anyMatch(log ->
-              log.contains("Unknown Cause")
-                  && log.contains("occurred during user creation with message:")
-                  && log.contains("User Creation Exception message"));
+                  log.contains("Unknown Cause")
+                      && log.contains("occurred during user creation with message:")
+                      && log.contains("User Creation Exception message"));
     }
   }
 
@@ -203,11 +255,19 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUserNotFoundException(exception);
 
-      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("User with id 3 does not exist", response.getBody().getMessage());
+      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(),
+          "Expected HTTP status to be 404 NOT_FOUND when user is not found");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when user is not found");
+
+      assertEquals("User with id 3 does not exist", response.getBody().getMessage(),
+          "Expected response message to indicate that the user with the given ID "
+              + "does not exist");
 
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to include UserNotFoundException "
+              + "details with the correct user ID and operation")
           .contains("UserNotFoundException: User with id 3 does not exist | Operation: deleteUser");
     }
   }
@@ -227,11 +287,20 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleUnauthorizedOperationException(exception);
 
-      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("User with id 3 does not exist", response.getBody().getMessage());
+      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(),
+          "Expected HTTP status to be 404 NOT_FOUND when an unauthorized operation occurs");
 
-      assertThat(logCaptor.getErrorLogs()).contains("User with id 3 does not exist");
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when the operation is unauthorized");
+
+      assertEquals("User with id 3 does not exist", response.getBody().getMessage(),
+          "Expected response message to indicate that the user with the given ID "
+              + "does not exist");
+
+      assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to contain the message about the "
+              + "unauthorized operation for the user with ID 3")
+          .contains("User with id 3 does not exist");
     }
   }
 
@@ -248,12 +317,21 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleDataIntegrityViolationException(exception);
 
-      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("A conflict occurred due to database constraints",
-          response.getBody().getMessage());
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode(),
+          "Expected HTTP status to be 409 CONFLICT when a data integrity violation occurs");
 
-      assertThat(logCaptor.getErrorLogs()).contains("Data integrity violation occurred");
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when a data integrity violation occurs");
+
+      assertEquals("A conflict occurred due to database constraints",
+          response.getBody().getMessage(),
+          "Expected response message to indicate that a conflict occurred due to "
+              + "database constraints");
+
+      assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to indicate a "
+              + "data integrity violation during the operation")
+          .contains("Data integrity violation occurred");
     }
   }
 
@@ -270,12 +348,21 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleOptimisticLockingFailureException(exception);
 
-      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("Concurrency conflict: another user updated the record",
-          response.getBody().getMessage());
+      assertEquals(HttpStatus.CONFLICT, response.getStatusCode(),
+          "Expected HTTP status to be 409 CONFLICT when an optimistic locking failure occurs");
 
-      assertThat(logCaptor.getErrorLogs()).contains("Optimistic locking conflict");
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when an optimistic locking failure occurs");
+
+      assertEquals("Concurrency conflict: another user updated the record",
+          response.getBody().getMessage(),
+          "Expected response message to indicate a concurrency conflict due to "
+              + "another user updating the record");
+
+      assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to indicate an "
+              + "optimistic locking conflict during the operation")
+          .contains("Optimistic locking conflict");
     }
   }
 
@@ -293,11 +380,20 @@ class GlobalExceptionHandlerTests {
       ResponseEntity<ResponseWrapper<String>> response =
           globalExceptionHandler.handleDataAccessException(exception);
 
-      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("An unexpected database error occurred", response.getBody().getMessage());
+      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(),
+          "Expected HTTP status to be 500 INTERNAL SERVER ERROR when a "
+              + "DataAccessException occurs");
 
-      assertThat(logCaptor.getErrorLogs()).contains("Database error occurred");
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when a DataAccessException occurs");
+
+      assertEquals("An unexpected database error occurred", response.getBody().getMessage(),
+          "Expected response message to contain details of the unexpected database error");
+
+      assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to contain the "
+              + "phrase 'Database error occurred' when a DataAccessException is handled")
+          .contains("Database error occurred");
     }
   }
 
@@ -331,15 +427,30 @@ class GlobalExceptionHandlerTests {
           globalExceptionHandler
               .handleHandlerMethodValidationException(mockHandlerMethodValidationException);
 
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("Validation failed", response.getBody().getMessage());
-      assertEquals("id", response.getBody().getData().getFirst().get("field"));
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+          "Expected HTTP status to be 400 BAD REQUEST when a ConstraintViolationException "
+              + "is handled");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when handling a validation exception");
+
+      assertEquals("Validation failed", response.getBody().getMessage(),
+          "Expected response message to be 'Validation failed' when handling a "
+              + "validation exception");
+
+      assertEquals("id", response.getBody().getData().getFirst().get("field"),
+          "Expected field name to be 'id' from the validation error");
+
       assertEquals("User id must be greater than zero",
-          response.getBody().getData().getFirst().get("message"));
-      assertEquals(0L, response.getBody().getData().getFirst().get("invalidValue"));
+          response.getBody().getData().getFirst().get("message"),
+          "Expected validation message to be 'User id must be greater than zero'");
+
+      assertEquals(0L, response.getBody().getData().getFirst().get("invalidValue"),
+          "Expected invalid value to be '0' from the validation error");
 
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to contain information about the "
+              + "ConstraintViolationException")
           .contains("HandlerMethodValidationException caught with cause: "
               + "ConstraintViolationException");
 
@@ -351,6 +462,8 @@ class GlobalExceptionHandlerTests {
 
       // Assert that a null cause will return Unknown Cause name in the log
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to contain 'Unknown Cause' when the "
+              + "exception cause is null")
           .contains("HandlerMethodValidationException caught with cause: "
               + "Unknown Cause");
     }
@@ -381,20 +494,33 @@ class GlobalExceptionHandlerTests {
           globalExceptionHandler
               .handleConstraintViolationException(mockConstraintViolationException);
 
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus());
-      assertEquals("Validation failed", response.getBody().getMessage());
+      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+          "Expected HTTP status to be 400 BAD REQUEST when handling a "
+              + "ConstraintViolationException");
+
+      assertEquals("error", Objects.requireNonNull(response.getBody()).getStatus(),
+          "Expected response status to be 'error' when handling a validation exception");
+
+      assertEquals("Validation failed", response.getBody().getMessage(),
+          "Expected response message to be 'Validation failed' when handling a "
+              + "validation exception");
 
       List<Map<String, Object>> errors = response.getBody().getData();
-      assertNotNull(errors);
-      assertEquals(1, errors.size());
+      assertNotNull(errors, "Expected error list to be non-null");
+      assertEquals(1, errors.size(), "Expected exactly one validation error in the response");
 
       Map<String, Object> error = errors.getFirst();
-      assertEquals("id", error.get("field"));
-      assertEquals("User id must be greater than zero", error.get("message"));
-      assertEquals(0L, error.get("invalidValue"));
+      assertEquals("id", error.get("field"),
+          "Expected field name to be 'id' from the validation error");
+
+      assertEquals("User id must be greater than zero", error.get("message"),
+          "Expected validation message to be 'User id must be greater than zero'");
+
+      assertEquals(0L, error.get("invalidValue"),
+          "Expected invalid value to be '0' from the validation error");
 
       assertThat(logCaptor.getErrorLogs())
+          .withFailMessage("Expected error logs to contain details about the validation failure")
           .contains("Validation failure: deleteUser failed with id having invalid value of 0 with "
               + "message User id must be greater than zero");
     }

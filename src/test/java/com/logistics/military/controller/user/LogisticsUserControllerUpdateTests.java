@@ -103,7 +103,10 @@ class LogisticsUserControllerUpdateTests {
     );
   }
 
-  /** Verifies that a valid user's update request returns ok (200) with updated user details. */
+  /**
+   * Verifies that a valid user's update request returns ok (200) with updated user details
+   * and logs properly.
+   */
   @Test
   @WithMockUser
   void givenValidUpdateRequestAndUserIdWhenUpdateUserThenReturnsSuccessWithUpdatedUserDetails()
@@ -115,30 +118,21 @@ class LogisticsUserControllerUpdateTests {
     when(logisticsUserService.updateUser(eq(testUserId), any(UserUpdateRequestDto.class)))
         .thenReturn(responseDto);
 
-
-    mockMvc.perform(put("/users/2")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(validJson))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("success"))
-        .andExpect(jsonPath("$.message").value("User updated successfully"))
-        .andExpect(jsonPath("$.data.userId").value(2L))
-        .andExpect(jsonPath("$.data.username").value("updatedUsername"))
-        .andExpect(jsonPath("$.data.email")
-            .value("updatedEmail@example.com"));
-  }
-
-  /** Verifies that a valid user's update request is logged properly. */
-  @Test
-  @WithMockUser
-  void givenValidUpdateRequestWhenUpdateUserThenLogsRequestProperly() throws Exception {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
       mockMvc.perform(put("/users/2")
               .contentType(MediaType.APPLICATION_JSON)
               .content(validJson))
-          .andExpect(status().isOk());
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("success"))
+          .andExpect(jsonPath("$.message").value("User updated successfully"))
+          .andExpect(jsonPath("$.data.userId").value(2L))
+          .andExpect(jsonPath("$.data.username").value("updatedUsername"))
+          .andExpect(jsonPath("$.data.email")
+              .value("updatedEmail@example.com"));
 
       assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Expected log to contain PUT request log for user ID 2 "
+              + "but it was missing.")
           .contains("Endpoint '/users/{id}' received PUT request with id = 2");
     }
   }

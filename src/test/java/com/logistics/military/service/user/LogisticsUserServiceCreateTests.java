@@ -110,13 +110,14 @@ class LogisticsUserServiceCreateTests {
   void givenLogisticsUserWhenMapToUserDtoThenReturnLogisticsUserDto() {
     LogisticsUserDto dto = logisticsUserService.mapToUserDto(user);
 
-    assertNotNull(dto);
-    assertEquals(user.getUserId(), dto.getUserId());
-    assertEquals(user.getUsername(), dto.getUsername());
-    assertEquals(user.getEmail(), dto.getEmail());
-    assertEquals(user.getCreatedAt(), dto.getCreatedAt());
-    assertEquals(1, dto.getAuthorities().size());
-    assertEquals("USER", dto.getAuthorities().iterator().next().getAuthority());
+    assertNotNull(dto, "LogisticsUserDto should not be null");
+    assertEquals(user.getUserId(), dto.getUserId(), "User IDs should match");
+    assertEquals(user.getUsername(), dto.getUsername(), "Usernames should match");
+    assertEquals(user.getEmail(), dto.getEmail(), "Emails should match");
+    assertEquals(user.getCreatedAt(), dto.getCreatedAt(), "Creation timestamps should match");
+    assertEquals(1, dto.getAuthorities().size(), "Authority size should be 1");
+    assertEquals("USER", dto.getAuthorities().iterator().next().getAuthority(),
+        "Authority should be 'USER'");
   }
 
   /**
@@ -133,24 +134,29 @@ class LogisticsUserServiceCreateTests {
     try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserService.class)) {
       LogisticsUserDto userDto = logisticsUserService.createAndSaveUser(userRequestDto);
 
-      assertNotNull(userDto);
-      assertEquals(user.getUserId(), userDto.getUserId());
-      assertEquals(user.getUsername(), userDto.getUsername());
-      assertEquals(user.getEmail(), userDto.getEmail());
-      assertEquals(user.getCreatedAt(), userDto.getCreatedAt());
-      assertEquals(user.getAuthorities(), userDto.getAuthorities());
+      assertNotNull(userDto, "Created LogisticsUserDto should not be null");
+      assertEquals(user.getUserId(), userDto.getUserId(), "User IDs should match");
+      assertEquals(user.getUsername(), userDto.getUsername(), "Usernames should match");
+      assertEquals(user.getEmail(), userDto.getEmail(), "Emails should match");
+      assertEquals(user.getCreatedAt(), userDto.getCreatedAt(), "Creation timestamps should match");
+      assertEquals(user.getAuthorities(), userDto.getAuthorities(), "Authorities should match");
 
-      assertThat(logCaptor.getInfoLogs().getFirst()).contains(
-          "Create user request with DTO:", user.getUsername(), user.getEmail());
+      assertThat(logCaptor.getInfoLogs().getFirst())
+          .withFailMessage("Expected log message for create user request to "
+              + "contain 'Create user request with DTO:' along with the username and email")
+          .contains("Create user request with DTO:", user.getUsername(), user.getEmail());
 
-      assertThat(logCaptor.getInfoLogs().get(1)).contains(
-          "LogisticsUser created:",
-          user.getUserId().toString(),
-          user.getUsername(),
-          user.getEmail(),
-          user.getCreatedAt().toString(),
-          user.getAuthorities().toString()
-      );
+      assertThat(logCaptor.getInfoLogs().get(1))
+          .withFailMessage("Expected log message for logistics user creation to "
+              + "contain 'LogisticsUser created:' along with user details (ID, username, email, "
+              + "creation time, authorities)")
+          .contains("LogisticsUser created:",
+              user.getUserId().toString(),
+              user.getUsername(),
+              user.getEmail(),
+              user.getCreatedAt().toString(),
+              user.getAuthorities().toString());
+
     }
   }
 
@@ -174,8 +180,8 @@ class LogisticsUserServiceCreateTests {
 
     UserDetails userDetails = logisticsUserService.loadUserByUsername(username);
 
-    assertNotNull(userDetails);
-    assertEquals(username, userDetails.getUsername());
+    assertNotNull(userDetails, "UserDetails should not be null");
+    assertEquals(username, userDetails.getUsername(), "Usernames should match");
     verify(logisticsUserRepository, times(1)).findByUsername(username);
   }
 

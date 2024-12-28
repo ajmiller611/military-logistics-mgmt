@@ -85,13 +85,17 @@ class RsaKeyConfigurationTests {
       mockedKeyPairGenerator.when(() -> KeyPairGenerator.getInstance("RSA"))
           .thenThrow(new NoSuchAlgorithmException("Simulated failure"));
 
-      assertThrows(IllegalStateException.class, KeyGeneratorUtility::generateRsaKey);
+      assertThrows(IllegalStateException.class, KeyGeneratorUtility::generateRsaKey,
+          "Expected IllegalStateException when RSA key generation fails due to "
+              + "NoSuchAlgorithmException");
 
       mockedKeyPairGenerator.when(() ->
               KeyPairGenerator.getInstance("RSA").initialize(2048))
           .thenThrow(new InvalidParameterException("Simulated failure"));
 
-      assertThrows(IllegalStateException.class, KeyGeneratorUtility::generateRsaKey);
+      assertThrows(IllegalStateException.class, KeyGeneratorUtility::generateRsaKey,
+          "Expected IllegalStateException when RSA key generation fails due to "
+              + "InvalidParameterException");
     }
   }
 
@@ -112,7 +116,10 @@ class RsaKeyConfigurationTests {
      * The IllegalStateException is wrapped inside the InvocationTargetException so checking the
      * cause will find the thrown IllegalStateException.
      */
-    assertInstanceOf(IllegalStateException.class, exception.getCause());
-    assertEquals("Utility class should not be instantiated", exception.getCause().getMessage());
+    assertInstanceOf(IllegalStateException.class, exception.getCause(),
+        "Expected cause to be IllegalStateException indicating utility class should not be "
+            + "instantiated.");
+    assertEquals("Utility class should not be instantiated", exception.getCause().getMessage(),
+        "Error message should indicate that the utility class should not be instantiated.");
   }
 }

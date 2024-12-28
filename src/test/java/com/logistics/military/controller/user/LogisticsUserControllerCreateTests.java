@@ -118,41 +118,9 @@ class LogisticsUserControllerCreateTests {
     );
   }
 
-  /** Verify a valid request logs the request and the created user. */
-  @Test
-  void givenRequestReceivedWhenRegisterUserThenLogRequestAndResponse() throws Exception {
-    when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
-
-    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
-      // Mock the post request to /users
-      mockMvc.perform(post("/users")
-              .contentType(MediaType.APPLICATION_JSON)
-              .content(validJson))
-          .andExpect(status().isCreated());
-
-      // Verify the log entry of received request
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /users received POST request:")
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-
-      // Verify the log entry of response with key data points
-      assertThat(logCaptor.getInfoLogs())
-          .anyMatch(log ->
-              log.contains("Endpoint /users response:")
-                  && log.contains(testUser.getUserId().toString())
-                  && log.contains(testUser.getUsername())
-                  && log.contains(testUser.getEmail()));
-
-      //Verify the log entries do not contain the user's password
-      assertThat(logCaptor.getInfoLogs()).doesNotContain(requestDto.getPassword());
-    }
-  }
-
   /**
    * Verify a valid request will respond with a status created (201), the URI of the created user,
-   * and the created user's details.
+   * and the created user's details. Also, ensure proper logging.
    */
   @Test
   void givenValidUserDetailsWhenRegisterUserThenReturnCreatedResponse() throws Exception {
@@ -161,15 +129,42 @@ class LogisticsUserControllerCreateTests {
     when(clock.getZone()).thenReturn(fixedClock.getZone());
     when(logisticsUserService.createAndSaveUser(any(UserRequestDto.class))).thenReturn(testUser);
 
-    // Mock the post request to /users and verify the response
-    mockMvc.perform(post("/users")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(validJson))
-        .andExpect(status().isCreated())
-        .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
-        .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
-        .andExpect(jsonPath("$.username").value(testUser.getUsername()))
-        .andExpect(jsonPath("$.email").value(testUser.getEmail()));
+    try (LogCaptor logCaptor = LogCaptor.forClass(LogisticsUserController.class)) {
+      // Mock the post request to /users and verify the response
+      mockMvc.perform(post("/users")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(validJson))
+          .andExpect(status().isCreated())
+          .andExpect(header().string("Location", matchesPattern(".*/users/\\d+")))
+          .andExpect(jsonPath("$.userId").value(testUser.getUserId()))
+          .andExpect(jsonPath("$.username").value(testUser.getUsername()))
+          .andExpect(jsonPath("$.email").value(testUser.getEmail()));
+
+      // Verify the log entry of received request
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Log entry for received request should contain the "
+              + "username and email of the created user")
+          .anyMatch(log ->
+              log.contains("Endpoint /users received POST request:")
+                  && log.contains(testUser.getUsername())
+                  && log.contains(testUser.getEmail()));
+
+
+      // Verify the log entry of response with key data points
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Log entry for response should contain the user ID, "
+              + "username, and email")
+          .anyMatch(log ->
+              log.contains("Endpoint /users response:")
+                  && log.contains(testUser.getUserId().toString())
+                  && log.contains(testUser.getUsername())
+                  && log.contains(testUser.getEmail()));
+
+      //Verify the log entries do not contain the user's password
+      assertThat(logCaptor.getInfoLogs())
+          .withFailMessage("Log entries should not contain the user's password")
+          .doesNotContain(requestDto.getPassword());
+    }
   }
 
   /** Verify an email with valid special characters responds with a status created (201). */

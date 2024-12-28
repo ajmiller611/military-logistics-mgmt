@@ -80,8 +80,9 @@ class LogisticsUserRepositoryIntegrationTests {
 
     Optional<LogisticsUser> fetchedUser = logisticsUserRepository.findByUsername("testUser");
 
-    assertTrue(fetchedUser.isPresent());
-    assertEquals(user.getUsername(), fetchedUser.get().getUsername());
+    assertTrue(fetchedUser.isPresent(), "User should be found for the username 'testUser'.");
+    assertEquals(user.getUsername(), fetchedUser.get().getUsername(),
+        "Fetched username should match the saved username.");
   }
 
   /** Verifies a nonexistent username in the database returns an empty Optional. */
@@ -90,7 +91,7 @@ class LogisticsUserRepositoryIntegrationTests {
     Optional<LogisticsUser> fetchedUser =
         logisticsUserRepository.findByUsername("nonexistentUsername");
 
-    assertTrue(fetchedUser.isEmpty());
+    assertTrue(fetchedUser.isEmpty(), "No user should be found for a nonexistent username.");
   }
 
   /** Verifies users with admin role are excluded from the results of the annotated query. */
@@ -103,13 +104,15 @@ class LogisticsUserRepositoryIntegrationTests {
     Page<LogisticsUser> fetchedPagedUsers =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
-    assertNotNull(fetchedPagedUsers);
-    assertEquals(0, fetchedPagedUsers.getNumber());
-    assertEquals(1, fetchedPagedUsers.getTotalPages());
-    assertEquals(5, fetchedPagedUsers.getTotalElements());
-    assertEquals(5, fetchedPagedUsers.getContent().size());
+    assertNotNull(fetchedPagedUsers, "Fetched page of users should not be null.");
+    assertEquals(0, fetchedPagedUsers.getNumber(), "Page number should be 0.");
+    assertEquals(1, fetchedPagedUsers.getTotalPages(), "There should be 1 page.");
+    assertEquals(5, fetchedPagedUsers.getTotalElements(),
+        "Total number of elements should be 5.");
+    assertEquals(5, fetchedPagedUsers.getContent().size(), "The page should contain 5 users");
     assertTrue(fetchedPagedUsers.getContent().stream()
-        .noneMatch(user -> user.getAuthorities().contains(adminRole)));
+        .noneMatch(user -> user.getAuthorities().contains(adminRole)),
+        "No user in the result should have the admin role.");
   }
 
   /** Verifies when only admin users exist in the database then an empty page is returned. */
@@ -122,12 +125,13 @@ class LogisticsUserRepositoryIntegrationTests {
     Page<LogisticsUser> fetchedPagedUsers =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
-    assertNotNull(fetchedPagedUsers);
-    assertTrue(fetchedPagedUsers.isEmpty());
-    assertEquals(0, fetchedPagedUsers.getNumber());
-    assertEquals(0, fetchedPagedUsers.getTotalPages());
-    assertEquals(0, fetchedPagedUsers.getTotalElements());
-    assertEquals(0, fetchedPagedUsers.getContent().size());
+    assertNotNull(fetchedPagedUsers, "Fetched page should not be null.");
+    assertTrue(fetchedPagedUsers.isEmpty(), "The page should be empty when no users exist.");
+    assertEquals(0, fetchedPagedUsers.getNumber(), "The page number should be 0.");
+    assertEquals(0, fetchedPagedUsers.getTotalPages(), "Total pages should be 0.");
+    assertEquals(0, fetchedPagedUsers.getTotalElements(), "Total elements should be 0.");
+    assertEquals(0, fetchedPagedUsers.getContent().size(),
+        "The content of the page should be empty");
   }
 
   /** Verifies when no users exist then an empty page is returned. */
@@ -137,8 +141,8 @@ class LogisticsUserRepositoryIntegrationTests {
     Page<LogisticsUser> fetchedPagedUsers =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
-    assertNotNull(fetchedPagedUsers);
-    assertTrue(fetchedPagedUsers.isEmpty());
+    assertNotNull(fetchedPagedUsers, "Fetched page should not be null.");
+    assertTrue(fetchedPagedUsers.isEmpty(), "The page should be empty when no users exist.");
   }
 
   /** Verifies when multiple pages of users exists then the requested page is the correct page. */
@@ -151,19 +155,25 @@ class LogisticsUserRepositoryIntegrationTests {
     Page<LogisticsUser> fetchedPagedUsers =
         logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
 
-    assertNotNull(fetchedPagedUsers);
-    assertEquals(1, fetchedPagedUsers.getNumber());
-    assertEquals(2, fetchedPagedUsers.getTotalPages());
-    assertEquals(10, fetchedPagedUsers.getTotalElements());
-    assertEquals(5, fetchedPagedUsers.getContent().size());
+    assertNotNull(fetchedPagedUsers, "Fetched page should not be null.");
+    assertEquals(1, fetchedPagedUsers.getNumber(), "Page number should be 1.");
+    assertEquals(2, fetchedPagedUsers.getTotalPages(), "There should be 2 pages.");
+    assertEquals(10, fetchedPagedUsers.getTotalElements(), "Total elements should be 10.");
+    assertEquals(5, fetchedPagedUsers.getContent().size(), "The page should contain 5 users.");
     assertTrue(fetchedPagedUsers.getContent().stream()
-        .noneMatch(user -> user.getAuthorities().contains(adminRole)));
+            .noneMatch(user -> user.getAuthorities().contains(adminRole)),
+        "No user in the result should have the admin role.");
 
-    assertEquals("testUser6", fetchedPagedUsers.getContent().getFirst().getUsername());
-    assertEquals("testUser7", fetchedPagedUsers.getContent().get(1).getUsername());
-    assertEquals("testUser8", fetchedPagedUsers.getContent().get(2).getUsername());
-    assertEquals("testUser9", fetchedPagedUsers.getContent().get(3).getUsername());
-    assertEquals("testUser10", fetchedPagedUsers.getContent().get(4).getUsername());
+    assertEquals("testUser6", fetchedPagedUsers.getContent().getFirst().getUsername(),
+        "First user on the second page should be 'testUser6'.");
+    assertEquals("testUser7", fetchedPagedUsers.getContent().get(1).getUsername(),
+        "Second user on the second page should be 'testUser7'.");
+    assertEquals("testUser8", fetchedPagedUsers.getContent().get(2).getUsername(),
+        "Third user on the second page should be 'testUser8'.");
+    assertEquals("testUser9", fetchedPagedUsers.getContent().get(3).getUsername(),
+        "Fourth user on the second page should be 'testUser9'.");
+    assertEquals("testUser10", fetchedPagedUsers.getContent().get(4).getUsername(),
+        "Fifth user on the second page should be 'testUser10'.");
   }
 
   /** Verify deleting an entry in the user table doesn't affect the roles table. */
@@ -174,7 +184,7 @@ class LogisticsUserRepositoryIntegrationTests {
 
     // Ensure the role exists in the database before deleting the user
     int roleId = adminRole.getRoleId();
-    assertTrue(roleRepository.existsById(roleId));
+    assertTrue(roleRepository.existsById(roleId), "Role should exist before deleting the user.");
 
     // Get the created user and delete the user from the database
     LogisticsUser user = logisticsUserRepository.findByUsername("admin1").orElseThrow();
@@ -182,10 +192,11 @@ class LogisticsUserRepositoryIntegrationTests {
 
     // Ensure the user has been deleted
     Optional<LogisticsUser> deletedUser = logisticsUserRepository.findById(user.getUserId());
-    assertFalse(deletedUser.isPresent());
+    assertFalse(deletedUser.isPresent(), "User should be deleted from the database.");
 
     // Verify the role exists in the database after deleting the user
-    assertTrue(roleRepository.existsById(roleId));
+    assertTrue(roleRepository.existsById(roleId),
+        "Role should remain in the database after deleting the user.");
   }
 
   /**
