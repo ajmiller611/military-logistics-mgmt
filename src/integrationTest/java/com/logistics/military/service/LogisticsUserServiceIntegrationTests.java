@@ -1,7 +1,9 @@
 package com.logistics.military.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.logistics.military.dto.UserRequestDto;
 import com.logistics.military.dto.UserUpdateRequestDto;
@@ -11,13 +13,15 @@ import com.logistics.military.model.LogisticsUser;
 import com.logistics.military.model.Role;
 import com.logistics.military.repository.LogisticsUserRepository;
 import com.logistics.military.repository.RoleRepository;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h2>Key Features Tested</h2>
  * <ul>
+ *   <li>
+ *     <strong>User Creation:</strong> Ensures {@code createAndSaveUser()} saves the user details
+ *     including encoding the password and the correct roles are assigned.
+ *   </li>
  *   <li>
  *     <strong>Aspect Interception for Existing Users:</strong> Confirms that the
  *     {@code @CheckUserExistence} aspect intercepts the call to {@code createAndSaveUser()}
@@ -63,13 +71,31 @@ class LogisticsUserServiceIntegrationTests {
   @Autowired private LogisticsUserService logisticsUserService;
   @Autowired private LogisticsUserRepository logisticsUserRepository;
   @Autowired private RoleRepository roleRepository;
+  @Autowired private PasswordEncoder passwordEncoder;
+  @Mock private Clock clock;
 
   Role userRole;
 
-  /** Initializes roles before each test case. */
-  @BeforeEach
-  void setUp() {
-    userRole = roleRepository.save(new Role("USER"));
+  /** Verify {@code createAndSaveUser()} saves user with encoded password and correct roles. */
+  @Test
+  void givenValidUserRequestDtoWhenCreateAndSaveUserThenUserSavedProperly() {
+    initializeUserRole();
+    UserRequestDto userRequestDto = new UserRequestDto(
+        "testUser",
+        "password",
+        "test@example.com"
+    );
+
+    logisticsUserService.createAndSaveUser(userRequestDto);
+    LogisticsUser user = logisticsUserRepository.findByUsername("testUser").orElseThrow();
+
+    assertNotNull(user);
+    assertEquals(1L, user.getUserId());
+    assertEquals(userRequestDto.getUsername(), user.getUsername());
+    assertTrue(passwordEncoder.matches(userRequestDto.getPassword(), user.getPassword()));
+    assertEquals(userRequestDto.getEmail(), user.getEmail());
+    assertTrue(user.getCreatedAt().isBefore(LocalDateTime.now()));
+    assertTrue(user.getAuthorities().contains(userRole));
   }
 
   /**
@@ -79,6 +105,7 @@ class LogisticsUserServiceIntegrationTests {
    */
   @Test
   void givenExistingUserWhenCreateAndSaveUserThenThrowUserAlreadyExistsException() {
+    initializeUserRole();
     String existingUsername = "existingUser";
     LogisticsUser existingUser = new LogisticsUser(
         2L,
@@ -146,5 +173,13 @@ class LogisticsUserServiceIntegrationTests {
     assertThrows(UserNotFoundException.class,
         () -> logisticsUserService.deleteUser(nonExistentId),
         "Expected deleteUser to throw a UserNotFoundException for a nonexistent user");
+  }
+
+  /**
+   * Initializes the 'USER' role by saving it to the database. This utility method optimizes
+   * test runtime by limiting role creation to only test cases that require the 'USER' role.
+   */
+  private void initializeUserRole() {
+    userRole = roleRepository.save(new Role("USER"));
   }
 }
