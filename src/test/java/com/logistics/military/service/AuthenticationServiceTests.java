@@ -129,15 +129,26 @@ class AuthenticationServiceTests {
     try (LogCaptor logCaptor = LogCaptor.forClass(AuthenticationService.class)) {
       AuthTokensDto result = authenticationService.loginUser(validUserRequest);
 
-      assertEquals("validAccessToken", result.getAccessToken());
-      assertEquals("validRefreshToken", result.getRefreshToken());
-      assertEquals(logisticsUserDto, result.getLogisticsUserDto());
+      assertEquals("validAccessToken", result.getAccessToken(),
+          "The access token in the response should match the expected valid access token.");
+
+      assertEquals("validRefreshToken", result.getRefreshToken(),
+          "The refresh token in the response should match the expected valid refresh token.");
+
+      assertEquals(logisticsUserDto, result.getLogisticsUserDto(),
+          "The logistics user DTO in the response should match the mapped user DTO.");
 
       assertThat(logCaptor.getInfoLogs().getFirst())
+          .withFailMessage("The log should indicate that a login request was received "
+              + "with the correct username.")
           .contains("Login request received with username: validUser");
+
       assertThat(logCaptor.getInfoLogs().get(1))
+          .withFailMessage("The log should confirm successful authentication for the user.")
           .contains("Authentication successful for validUser");
+
       assertThat(logCaptor.getInfoLogs().get(2))
+          .withFailMessage("The log should confirm that the correct user details were returned.")
           .contains(String.format("User details returned: %s", logisticsUserDto));
     }
   }
@@ -153,9 +164,17 @@ class AuthenticationServiceTests {
 
     AuthTokensDto result = authenticationService.loginUser(validUserRequest);
 
-    assertEquals("", result.getAccessToken());
-    assertEquals("", result.getRefreshToken());
-    assertNull(result.getLogisticsUserDto());
+    assertEquals("", result.getAccessToken(),
+        "The access token should be empty when authentication fails due to "
+            + "invalid credentials.");
+
+    assertEquals("", result.getRefreshToken(),
+        "The refresh token should be empty when authentication fails due to "
+            + "invalid credentials.");
+
+    assertNull(result.getLogisticsUserDto(),
+        "The logistics user DTO should be null when authentication fails due to "
+            + "invalid credentials.");
   }
 
   /**
@@ -171,8 +190,13 @@ class AuthenticationServiceTests {
 
     AuthTokensDto result = authenticationService.loginUser(validUserRequest);
 
-    assertEquals("", result.getAccessToken());
-    assertEquals("", result.getRefreshToken());
-    assertNull(result.getLogisticsUserDto());
+    assertEquals("", result.getAccessToken(),
+        "The access token should be empty when the user does not exist in the database.");
+
+    assertEquals("", result.getRefreshToken(),
+        "The refresh token should be empty when the user does not exist in the database.");
+
+    assertNull(result.getLogisticsUserDto(),
+        "The logistics user DTO should be null when the user does not exist in the database.");
   }
 }
