@@ -171,7 +171,10 @@ class TokenServiceTests {
 
     Map<String, Object> refreshTokenClaims = tokenService.decodeJwt(tokens.get("refreshToken"));
     assertNotNull(refreshTokenClaims, "Refresh token claims should not be null");
-    assertEquals(username, refreshTokenClaims.get("sub"), "Subject claim should match the username");
+
+    assertEquals(username, refreshTokenClaims.get("sub"),
+        "Subject claim should match the username");
+
     assertEquals("self", refreshTokenClaims.get("iss"), "Issuer claim should be 'self'");
 
 
