@@ -94,10 +94,16 @@ class LogisticsUserServiceUpdateTests {
     UserResponseDto result = logisticsUserService.updateUser(userId, updateRequestDto);
 
     verify(logisticsUserRepository, times(1)).findById(userId);
-    assertNotNull(result);
-    assertEquals(userId, result.getUserId());
-    assertEquals(updateRequestDto.getUsername(), result.getUsername());
-    assertEquals(updateRequestDto.getEmail(), result.getEmail());
+    assertNotNull(result, "The result should not be null when a valid user update is performed.");
+
+    assertEquals(userId, result.getUserId(),
+        "The user ID in the response should match the input user ID.");
+
+    assertEquals(updateRequestDto.getUsername(), result.getUsername(),
+        "The updated username in the response should match the input username.");
+
+    assertEquals(updateRequestDto.getEmail(), result.getEmail(),
+        "The updated email in the response should match the input email.");
   }
 
   /** Verifies that updating an admin user throws {@link UnauthorizedOperationException}. */
@@ -114,10 +120,16 @@ class LogisticsUserServiceUpdateTests {
 
     verify(logisticsUserRepository, times(1)).findById(adminUserId);
     verify(logisticsUserRepository, never()).save(any(LogisticsUser.class));
-    assertNotNull(exception);
+    assertNotNull(exception, "An UnauthorizedOperationException should be thrown when "
+        + "attempting to update an admin user.");
+
     assertEquals(
         String.format("Unauthorized user cannot update admin user with id %d", adminUserId),
-        exception.getMessage());
-    assertEquals(adminUserId, exception.getId());
+        exception.getMessage(),
+        "The exception message should indicate the unauthorized attempt to update an "
+            + "admin user.");
+
+    assertEquals(adminUserId, exception.getId(), "The exception should reference the "
+        + "correct admin user ID.");
   }
 }
