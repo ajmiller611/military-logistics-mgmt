@@ -1,6 +1,7 @@
 package com.logistics.military.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,7 +10,6 @@ import com.logistics.military.model.Role;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -58,22 +58,16 @@ import org.springframework.test.context.ActiveProfiles;
 @DataJpaTest
 class LogisticsUserRepositoryIntegrationTests {
 
-  @Autowired LogisticsUserRepository logisticsUserRepository;
-  @Autowired RoleRepository roleRepository;
+  @Autowired private LogisticsUserRepository logisticsUserRepository;
+  @Autowired private RoleRepository roleRepository;
 
-  Role adminRole;
-  Role userRole;
-
-  /** Initializes roles before each test case. */
-  @BeforeEach
-  void setUp() {
-    adminRole = roleRepository.save(new Role("ADMIN"));
-    userRole = roleRepository.save(new Role("USER"));
-  }
+  private Role adminRole;
+  private Role userRole;
 
   /** Verifies an existent username in the database finds the existent user. */
   @Test
   void givenExistentUsernameWhenFindByUsernameThenReturnUser() {
+    initializeRoles(false, true);
     LogisticsUser user = new LogisticsUser(
         null,
         "testUser",
@@ -102,6 +96,7 @@ class LogisticsUserRepositoryIntegrationTests {
   /** Verifies users with admin role are excluded from the results of the annotated query. */
   @Test
   void givenRoleToExcludeWhenFindAllWithoutRoleThenReturnUsersWithoutExcludedRole() {
+    initializeRoles(true, true);
     initializeDatabaseWithUsersAndAdmin(5, 2);
 
     Pageable pageable = PageRequest.of(0, 10);
@@ -117,9 +112,39 @@ class LogisticsUserRepositoryIntegrationTests {
         .noneMatch(user -> user.getAuthorities().contains(adminRole)));
   }
 
+  /** Verifies when only admin users exist in the database then an empty page is returned. */
+  @Test
+  void givenOnlyAdminUsersExistWhenFindAllWithoutRoleThenReturnEmptyPage() {
+    initializeRoles(true, true);
+    initializeDatabaseWithUsersAndAdmin(0, 5);
+
+    Pageable pageable = PageRequest.of(0, 10);
+    Page<LogisticsUser> fetchedPagedUsers =
+        logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
+
+    assertNotNull(fetchedPagedUsers);
+    assertTrue(fetchedPagedUsers.isEmpty());
+    assertEquals(0, fetchedPagedUsers.getNumber());
+    assertEquals(0, fetchedPagedUsers.getTotalPages());
+    assertEquals(0, fetchedPagedUsers.getTotalElements());
+    assertEquals(0, fetchedPagedUsers.getContent().size());
+  }
+
+  /** Verifies when no users exist then an empty page is returned. */
+  @Test
+  void givenNoUsersWhenFindAllWithoutRoleThenReturnEmptyPage() {
+    Pageable pageable = PageRequest.of(0, 10);
+    Page<LogisticsUser> fetchedPagedUsers =
+        logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
+
+    assertNotNull(fetchedPagedUsers);
+    assertTrue(fetchedPagedUsers.isEmpty());
+  }
+
   /** Verifies when multiple pages of users exists then the requested page is the correct page. */
   @Test
   void givenMultipleUserPagesWhenFindAllWithoutRoleThenReturnCorrectPage() {
+    initializeRoles(true, true);
     initializeDatabaseWithUsersAndAdmin(10, 2);
 
     Pageable pageable = PageRequest.of(1, 5);
@@ -141,21 +166,26 @@ class LogisticsUserRepositoryIntegrationTests {
     assertEquals("testUser10", fetchedPagedUsers.getContent().get(4).getUsername());
   }
 
-  /** Verifies when only admin users exist in the database then an empty page is returned. */
+  /** Verify deleting an entry in the user table doesn't affect the roles table. */
   @Test
-  void givenOnlyAdminUsersExistWhenFindAllWithoutRoleThenReturnEmptyPage() {
-    initializeDatabaseWithUsersAndAdmin(0, 5);
+  void givenExistingUserWhenUserDeletedThenRoleTableUnaffected() {
+    initializeRoles(true, false);
+    initializeDatabaseWithUsersAndAdmin(0, 1);
 
-    Pageable pageable = PageRequest.of(0, 10);
-    Page<LogisticsUser> fetchedPagedUsers =
-        logisticsUserRepository.findAllWithoutRole(pageable, adminRole);
+    // Ensure the role exists in the database before deleting the user
+    int roleId = adminRole.getRoleId();
+    assertTrue(roleRepository.existsById(roleId));
 
-    assertNotNull(fetchedPagedUsers);
-    assertTrue(fetchedPagedUsers.isEmpty());
-    assertEquals(0, fetchedPagedUsers.getNumber());
-    assertEquals(0, fetchedPagedUsers.getTotalPages());
-    assertEquals(0, fetchedPagedUsers.getTotalElements());
-    assertEquals(0, fetchedPagedUsers.getContent().size());
+    // Get the created user and delete the user from the database
+    LogisticsUser user = logisticsUserRepository.findByUsername("admin1").orElseThrow();
+    logisticsUserRepository.delete(user);
+
+    // Ensure the user has been deleted
+    Optional<LogisticsUser> deletedUser = logisticsUserRepository.findById(user.getUserId());
+    assertFalse(deletedUser.isPresent());
+
+    // Verify the role exists in the database after deleting the user
+    assertTrue(roleRepository.existsById(roleId));
   }
 
   /**
@@ -174,7 +204,7 @@ class LogisticsUserRepositoryIntegrationTests {
           "password",
           "admin" + i + "@example.com",
           LocalDateTime.now(),
-          Set.of(adminRole, userRole)
+          Set.of(adminRole)
       );
       logisticsUserRepository.save(user);
     }
@@ -190,6 +220,22 @@ class LogisticsUserRepositoryIntegrationTests {
           Set.of(userRole)
       );
       logisticsUserRepository.save(user);
+    }
+  }
+
+  /**
+   * Initializes the specified roles by saving them to the database. This utility method optimizes
+   * test runtime by limiting role creation to only those required for the test case.
+   *
+   * @param admin {@code true} to create and save the admin role; {@code false} otherwise.
+   * @param user {@code true} to create and save the user role; {@code false} otherwise.
+   */
+  private void initializeRoles(boolean admin, boolean user) {
+    if (admin) {
+      adminRole = roleRepository.save(new Role("ADMIN"));
+    }
+    if (user) {
+      userRole = roleRepository.save(new Role("USER"));
     }
   }
 }
