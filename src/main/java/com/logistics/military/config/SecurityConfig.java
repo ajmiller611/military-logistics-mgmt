@@ -1,6 +1,8 @@
 package com.logistics.military.config;
 
 import com.logistics.military.security.JwtAuthenticationFilter;
+import io.github.cdimascio.dotenv.Dotenv;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Configuration class for setting up web security in the application.
@@ -124,5 +128,34 @@ public class SecurityConfig {
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
+  }
+
+  /**
+   * Configures Cross-Origin Resource Sharing (CORS) for the application.
+   *
+   * <p>This method defines CORS settings to allow requests from the allowed origin defined in
+   * a .env file or a system environment variable for CI/CD environments. By configuring CORS
+   * this way, the backend RESTful API permits only requests originating from the frontend and
+   * the origin can be easily updated for use in development or production.</p>
+   *
+   * <p>The CORS policy specifies the allowed HTTP methods (<code>GET</code>, <code>POST</code>,
+   * <code>PUT</code>, and <code>DELETE</code>), ensuring that the frontend can perform these
+   * operations on backend resources. This configuration is essential for enabling secure and
+   * controlled communication between the frontend and backend.</p>
+   *
+   * @return a {@link UrlBasedCorsConfigurationSource} configured with the CORS settings
+   */
+  @Bean
+  UrlBasedCorsConfigurationSource apiCorsConfigurationSource() {
+    Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+    String allowedOrigin = dotenv.get("FRONTEND_ORIGIN");
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(
+        List.of(allowedOrigin == null ? System.getenv("FRONTEND_ORIGIN") : allowedOrigin));
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+    configuration.setAllowCredentials(true);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
   }
 }
