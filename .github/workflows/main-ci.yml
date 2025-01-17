@@ -54,6 +54,7 @@ jobs:
       env:
         SPRING_PROFILES_ACTIVE: test
         ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
 
     # Run Integration Tests with PostgreSQL database
     - name: Run Integration Tests
