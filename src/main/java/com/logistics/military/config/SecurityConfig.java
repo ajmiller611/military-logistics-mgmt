@@ -151,6 +151,8 @@ public class SecurityConfig {
   UrlBasedCorsConfigurationSource apiCorsConfigurationSource() {
     Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
     String allowedOrigin = dotenv.get("FRONTEND_ORIGIN");
+    System.out.println("AllowedOrigin before: " + allowedOrigin);
+    System.out.println("System env: " + System.getenv("FRONTEND_ORIGIN"));
     CorsConfiguration configuration = new CorsConfiguration();
     configuration.setAllowedOrigins(
         List.of(allowedOrigin == null ? System.getenv("FRONTEND_ORIGIN") : allowedOrigin));
