@@ -106,6 +106,8 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
+        .cors(cors -> cors
+            .configurationSource(apiCorsConfigurationSource()))
         .csrf(AbstractHttpConfigurer::disable) // CSRF unnecessary for stateless JWT authentication
         .authorizeHttpRequests(auth -> {
           auth.requestMatchers("/auth/**").permitAll();
@@ -154,6 +156,7 @@ public class SecurityConfig {
         List.of(allowedOrigin == null ? System.getenv("FRONTEND_ORIGIN") : allowedOrigin));
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
     configuration.setAllowCredentials(true);
+    configuration.setAllowedHeaders(List.of("*"));
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
     return source;
